@@ -7,8 +7,7 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     avatar: { type: String, default: "" },
-    twoFactorEnabled: { type: Boolean, default: false },
-    twoFactorSecret: { type: String, default: undefined },
+    refreshToken: { type: String, default: "" },
   },
   {
     timestamps: true,
@@ -28,5 +27,8 @@ userSchema.methods.comparePassword = async function (
 ) {
   return bcrypt.compare(val, this.password);
 };
-export type IUser = mongoose.InferSchemaType<typeof userSchema>;
+export type IUser = mongoose.Document &
+  mongoose.InferSchemaType<typeof userSchema> & {
+    comparePassword(val: string): Promise<boolean>;
+  };
 export const User = mongoose.model("User", userSchema);
