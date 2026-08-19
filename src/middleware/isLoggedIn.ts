@@ -1,19 +1,22 @@
-import { NextFunction, Response } from "express";
-import { ApiError } from "../utils/ErrorHandling.ts/APIError";
-import { AuthenticatedRequest } from "../@types/CustomExpressTypes";
+import { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../utils/token.util";
 
 export const isLoggedInMiddleWare = async (
-  req: AuthenticatedRequest,
-  _res: Response,
+  req: Request,
+  res: Response,
   next: NextFunction,
 ) => {
-  let accessToken: string | null = req.cookies.refreshToken;
-  if (!accessToken) {
-    throw new ApiError(404, "Not authorised");
+  let accessToken: string | null = req.cookies.accessToken;
+  if (accessToken == null) {
+    res.status(401).send("Not authorised");
+    return;
   }
-  let playLoad = verifyAccessToken(accessToken) as { id: string };
-  console.log(JSON.stringify(accessToken, null, 2));
-  req.user = playLoad.id;
+  try {
+    let playLoad = verifyAccessToken(accessToken) as { _id: string };
+    req.user = playLoad._id;
+  } catch (error) {
+    res.status(401).send("Not authorised");
+    return;
+  }
   next();
 };

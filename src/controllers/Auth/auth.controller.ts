@@ -5,30 +5,25 @@ import jwt from "jsonwebtoken";
 import getEnv from "../../getEnv";
 import { sendEmail } from "../../utils/Mail.util";
 import { AuthenticatedRequest } from "../../@types/CustomExpressTypes";
-import {
-  createAccessToken,
-  createRefreshToken,
-  verifyRefreshToken,
-} from "../../utils/token.util";
 import { asyncHandler } from "../../utils/ErrorHandling.ts/asyncHandler";
 import { ApiError } from "../../utils/ErrorHandling.ts/APIError";
 import { IUser, User } from "../../models/user.model";
 import getGoogleClient from "../../utils/getGoogleClient";
 import { ApiResponse } from "../../utils/ErrorHandling.ts/APIResponse";
+import crypto from "node:crypto";
 import {
   getNewAccessTokenService,
   logInService,
   registerUser,
   sendRegisterMail,
 } from "../../services/AuthServices";
+import saveUser from "../../dao/User/saveUser";
 //working
 export const registerHandler = asyncHandler(
   async (req: Request, res: Response) => {
     const result = registerSchema.safeParse(req.body);
     if (!result.success) {
-      return res
-        .status(400)
-        .json({ message: "Invalid data!", errors: result.error.flatten() });
+      throw new ApiError(403, "Invalid data");
     }
     result.data.email = result.data.email.trim().toLowerCase();
     await sendRegisterMail(result.data);
@@ -48,7 +43,7 @@ export const verifyEmailHandler = asyncHandler(
     return res.status(201).json(new ApiResponse(201, "User Email Verified"));
   },
 );
-//checking
+//working
 export const loginHandler = asyncHandler(
   async (req: Request, res: Response) => {
     const zvarification = loginSchema.safeParse(req.body);
@@ -77,6 +72,7 @@ export const loginHandler = asyncHandler(
       );
   },
 );
+//working
 export const getNewAccessToken = asyncHandler(
   async (req: Request, res: Response) => {
     const token = req.cookies?.refreshToken as string | undefined;
@@ -84,17 +80,14 @@ export const getNewAccessToken = asyncHandler(
       throw new ApiError(401, "Refresh token is missing");
     }
 
-    const newAccessToken = getNewAccessTokenService(token);
-    res.cookie(
-      "accessToken",
-      { accessToken: newAccessToken },
-      {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 12 * 60 * 60 * 1000,
-      },
-    );
+    const newAccessToken = await getNewAccessTokenService(token);
+    console.log(newAccessToken);
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 12 * 60 * 60 * 1000,
+    });
     return res
       .status(200)
       .json(
@@ -102,6 +95,7 @@ export const getNewAccessToken = asyncHandler(
       );
   },
 );
+//working
 export const logoutHandler = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const id = req.user;
@@ -120,7 +114,11 @@ export const logoutHandler = asyncHandler(
     });
   },
 );
-export async function GenerateResetPasswordlink(req: Request, res: Response) {
+//working
+export const GenerateResetPasswordlink = async (
+  req: Request,
+  res: Response,
+) => {
   const zvarification = loginSchema.safeParse(req.body);
   if (!zvarification.success) {
     throw new ApiError(400, "Invalid credential");
@@ -128,10 +126,13 @@ export async function GenerateResetPasswordlink(req: Request, res: Response) {
   const { email, password } = zvarification.data;
   const normalizedEmail = email.toLowerCase().trim();
   const User: IUser | null = await isEmailPresent(normalizedEmail);
+  if (User == null) {
+    throw new ApiError(404, "Invalid Request");
+  }
   const verifyToken = jwt.sign(
     {
       id: User?._id,
-      email,
+      email: normalizedEmail,
       password,
     },
     getEnv.JWT_ACCESS_SECRET,
@@ -172,8 +173,9 @@ export async function GenerateResetPasswordlink(req: Request, res: Response) {
   return res
     .status(201)
     .json(new ApiResponse(201, {}, "Reset Password Link send"));
-}
-export async function ResetPassword(req: Request, res: Response) {
+};
+//working
+export const ResetPassword = async (req: Request, res: Response) => {
   const token = req.query.token as string | undefined;
   if (!token) {
     throw new ApiError(401, "Invalid Request");
@@ -195,8 +197,8 @@ export async function ResetPassword(req: Request, res: Response) {
   user.password = payload.password;
   await user.save();
   return res.status(201).json(new ApiResponse(201, "Password Reset"));
-}
-
+};
+//working
 export const googleAuthStartHandler = asyncHandler(
   async (_req: Request, res: Response) => {
     try {
@@ -241,7 +243,12 @@ export const googleAuthCallBackHandler = asyncHandler(
     let user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       const randomPassword = crypto.randomBytes(16).toString("hex");
-      console.log(randomPassword);
+      let input = {
+        name: payload.name,
+        email: payload.email,
+        password: randomPassword,
+      };
+      await saveUser(input);
     }
     return res.status(400).json({
       message: "Google email account is not verified",

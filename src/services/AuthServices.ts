@@ -112,7 +112,7 @@ export const getNewAccessTokenService = async (token: string) => {
   const payload = verifyRefreshToken(token) as { _id: String };
   console.log(JSON.stringify(payload));
   const user = await User.findById(payload._id);
-  if (!user) {
+  if (!user || user.refreshToken != token) {
     throw new ApiError(401, "Invalid credential");
   }
   return createAccessToken({ _id: user.id });

@@ -9,8 +9,11 @@ let getEnv = {
   JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "",
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "",
   APP_URL: `${process.env.APP_URL}:${process.env.PORT || 5000}`,
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || "",
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
   GOOGLE_REDIRECT_URL: process.env.GOOGLE_REDIRECT_URL,
+  CLOUDINARY_SECRET: process.env.CLOUDINARY_SECRET || "",
+  CLOUDINAEY_API_KEY: process.env.CLOUDINARY_APIKEY || "",
+  CLOUDNAME: process.env.CLOUDNAME || "",
 };
 export default getEnv;
