@@ -4,15 +4,14 @@ import { uploadOnCloudinary } from "../utils/cloudinary";
 export const createPostService = async (
   text: string,
   belong_to: string,
-  image: string | null,
+  image: string | undefined,
 ) => {
-  if (image == null) {
+  if (!image) {
     await Post.create({
       belong_to,
       text,
     });
   } else {
-    console.log(image);
     let response: string | null = await uploadOnCloudinary(image);
     await Post.create({
       belong_to,

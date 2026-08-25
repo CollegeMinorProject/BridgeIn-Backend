@@ -7,7 +7,7 @@ import { createPostService } from "../../services/Post.Services";
 
 //create post
 export const createPost = asyncHandler(async (req: Request, res: Response) => {
-  let file = req.file.path;
+  let file = req.file?.path;
   let result = createPostSchema.safeParse(req.body);
   if (!result.success) {
     throw new ApiError(403, "Invalid data");
@@ -28,6 +28,9 @@ export const createPost = asyncHandler(async (req: Request, res: Response) => {
     );
 });
 //delete post
+//update post
 //like dislike post
+//get like details
 //comment on post
+//get comment in bunch
 //delete comment

@@ -5,11 +5,16 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/Mail.util";
 import saveUser from "../dao/User/saveUser";
 import { IUser, User } from "../models/user.model";
+import crypto from "node:crypto";
 import {
   createAccessToken,
   createRefreshToken,
+  setAccessTokenInCookies,
+  setRefreshTokenAndAccessTokenInCookies,
   verifyRefreshToken,
 } from "../utils/token.util";
+import { Response } from "express";
+import getGoogleClient from "../utils/getGoogleClient";
 type registerObject = {
   email: string;
   name: string;
@@ -108,6 +113,20 @@ export const logInService = async ({ email, password }: loginObject) => {
   await User.save();
   return { accessToken, refreshToken };
 };
+export const logOutService = async (
+  res: Response,
+  id: string,
+): Promise<void> => {
+  const user = await User.findById(id);
+  if (!user) {
+    throw new ApiError(401, "Invalid Cradential");
+  }
+  user.refreshToken = "";
+  await user.save();
+  res
+    .clearCookie("refreshToken", { path: "/" })
+    .clearCookie("accessToken", { path: "/" });
+};
 export const getNewAccessTokenService = async (token: string) => {
   const payload = verifyRefreshToken(token) as { _id: String };
   console.log(JSON.stringify(payload));
@@ -116,4 +135,107 @@ export const getNewAccessTokenService = async (token: string) => {
     throw new ApiError(401, "Invalid credential");
   }
   return createAccessToken({ _id: user.id });
+};
+export const GenerateResetPasswordLinkService = async (
+  email: string,
+  password: string,
+): Promise<void> => {
+  const User: IUser | null = await isEmailPresent(email);
+  if (User == null) {
+    throw new ApiError(404, "Invalid Request");
+  }
+  const verifyToken = jwt.sign(
+    {
+      id: User?._id,
+      email: email,
+      password,
+    },
+    getEnv.JWT_ACCESS_SECRET,
+    {
+      expiresIn: "1d",
+    },
+  );
+  const resetUrl = `${getEnv.APP_URL}/resetPassword?token=${verifyToken}`;
+  const html = `
+  <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f7; padding: 40px 20px; margin: 0;">
+    <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+      <h2 style="color: #1a1a1a; margin-top: 0; text-align: center;">Reset Your Password</h2>
+      
+      <p style="color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 30px; text-align: center;">
+        We received a request to reset your password. Click the button below to choose a new password. This link will expire shortly for your security.
+      </p>
+      
+      <div style="text-align: center;">
+        <a href="${resetUrl}" style="display: inline-block; background-color: #4F46E5; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 28px; border-radius: 6px;">
+          Reset Password
+        </a>
+      </div>
+      
+      <p style="color: #888888; font-size: 14px; line-height: 1.5; margin-top: 40px; border-top: 1px solid #eeeeee; padding-top: 20px;">
+        If the button above doesn't work, copy and paste this link into your web browser:<br><br>
+        <a href="${resetUrl}" style="color: #4F46E5; word-break: break-all; text-decoration: underline;">
+          ${resetUrl}
+        </a>
+      </p>
+      
+      <p style="color: #aaaaaa; font-size: 12px; margin-top: 20px; text-align: center;">
+        If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+      </p>
+    </div>
+  </div>
+`;
+  await sendEmail(email, "Verify your email", html);
+};
+export const ResetPasswordService = async (token: string): Promise<void> => {
+  let payload;
+  try {
+    payload = jwt.verify(token, getEnv.JWT_ACCESS_SECRET) as {
+      id: string;
+      email: string;
+      password: string;
+    };
+  } catch (error) {
+    throw new ApiError(401, "Invalid Request");
+  }
+  const user = await User.findById(payload.id);
+  if (!user) {
+    throw new ApiError(400, "Request Expired");
+  }
+  user.password = payload.password;
+  await user.save();
+};
+export const googleAuthCallBackService = async (
+  res: Response,
+  code: string,
+): Promise<void> => {
+  const client = getGoogleClient();
+  const { tokens } = await client.getToken(code);
+  if (!tokens.id_token) {
+    throw new ApiError(500, "No google id_token is present");
+  }
+  const ticket = await client.verifyIdToken({
+    idToken: tokens.id_token,
+    audience: getEnv.GOOGLE_CLIENT_ID as string,
+  });
+  const payload = ticket.getPayload();
+  const name = payload?.name;
+  const email = payload?.email;
+  const emailVerified = payload?.email_verified;
+  if (!email || !emailVerified || !name) {
+    throw new ApiError(400, "Google email account is not verified");
+  }
+  const normalizedEmail = email.toLowerCase().trim();
+  let user = await User.findOne({ email: normalizedEmail });
+  if (!user) {
+    const randomPassword = crypto.randomBytes(16).toString("hex");
+    let input = {
+      name: name,
+      email: email,
+      password: randomPassword,
+    };
+    user = await saveUser(input);
+  }
+  let accessToken = createAccessToken({ _id: user.id });
+  let refreshToken = createRefreshToken({ _id: user.id });
+  setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
 };
