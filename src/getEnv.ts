@@ -15,5 +15,6 @@ let getEnv = {
   CLOUDINARY_SECRET: process.env.CLOUDINARY_SECRET || "",
   CLOUDINAEY_API_KEY: process.env.CLOUDINARY_APIKEY || "",
   CLOUDNAME: process.env.CLOUDNAME || "",
+  REDIS_URL: process.env.REDIS_URL || "",
 };
 export default getEnv;

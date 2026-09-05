@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
-import { loginSchema, registerSchema } from "./auth.schema";
+import {
+  loginSchema,
+  registerSchema,
+  zodHandleOTPSchema,
+  zodisEmail,
+} from "./auth.schema";
 import { asyncHandler } from "../../utils/ErrorHandling.ts/asyncHandler";
 import { ApiError } from "../../utils/ErrorHandling.ts/APIError";
 import getGoogleClient from "../../utils/getGoogleClient";
@@ -14,6 +19,8 @@ import {
   registerUser,
   ResetPasswordService,
   sendRegisterMail,
+  setLogInOTP,
+  validateLogInOTP,
 } from "../../services/AuthServices";
 import {
   setAccessTokenInCookies,
@@ -135,5 +142,34 @@ export const googleAuthCallBackHandler = asyncHandler(
     }
     await googleAuthCallBackService(res, code);
     res.status(200).json(new ApiResponse(200, "Logged In"));
+  },
+);
+export const sendLogInWithOTPEmailHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    let email = req.body.email;
+    let verification = zodisEmail.safeParse(email);
+    if (!verification.success) {
+      throw new ApiError(400, "Bad Request");
+    }
+    await setLogInOTP(email);
+    res.status(200).json(new ApiResponse(200, "OTP send to your email"));
+  },
+);
+export const verifyOTPHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    let verification = zodHandleOTPSchema.safeParse(req.body);
+    if (!verification.success) {
+      throw new ApiError(400, "Bad Request");
+    }
+    let { refreshToken, accessToken } = await validateLogInOTP(
+      verification.data.email,
+      verification.data.otp,
+    );
+    setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { accessToken, refreshToken }, "logIn success"),
+      );
   },
 );

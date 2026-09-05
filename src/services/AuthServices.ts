@@ -6,15 +6,17 @@ import { sendEmail } from "../utils/Mail.util";
 import saveUser from "../dao/User/saveUser";
 import { IUser, User } from "../models/user.model";
 import crypto from "node:crypto";
+import { redisConfig } from "../index";
+import { RedisEmailOTPKey } from "../utils/redisKeys";
 import {
   createAccessToken,
   createRefreshToken,
-  setAccessTokenInCookies,
   setRefreshTokenAndAccessTokenInCookies,
   verifyRefreshToken,
 } from "../utils/token.util";
 import { Response } from "express";
 import getGoogleClient from "../utils/getGoogleClient";
+import { OTPMAIL, RESETURLMAIL, VERIFYURL } from "../utils/MailHTMLConstants";
 type registerObject = {
   email: string;
   name: string;
@@ -46,34 +48,7 @@ export const sendRegisterMail = async ({
     },
   );
   const verifyUrl = `${getEnv.APP_URL}/verifyEmail?token=${verifyToken}`;
-  const html = `
-    <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f7; padding: 40px 20px; margin: 0;">
-    <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
-      <h2 style="color: #1a1a1a; margin-top: 0; text-align: center;">Verify Your Email</h2>
-      
-      <p style="color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 30px; text-align: center;">
-        Thank you for registering! Please verify your email address by clicking the button below. This helps us keep your account secure.
-      </p>
-      
-      <div style="text-align: center;">
-        <a href="${verifyUrl}" style="display: inline-block; background-color: #4F46E5; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 28px; border-radius: 6px;">
-          Verify Email
-        </a>
-      </div>
-      
-      <p style="color: #888888; font-size: 14px; line-height: 1.5; margin-top: 40px; border-top: 1px solid #eeeeee; padding-top: 20px;">
-        If the button above doesn't work, copy and paste this link into your web browser:<br><br>
-        <a href="${verifyUrl}" style="color: #4F46E5; word-break: break-all; text-decoration: underline;">
-          ${verifyUrl}
-        </a>
-      </p>
-      
-      <p style="color: #aaaaaa; font-size: 12px; margin-top: 20px; text-align: center;">
-        If you didn't create an account, you can safely ignore this email.
-      </p>
-    </div>
-  </div>
-`;
+  const html = VERIFYURL(verifyUrl);
   await sendEmail(email, "Verify your email", html);
 };
 export const registerUser = async (token: string) => {
@@ -156,35 +131,30 @@ export const GenerateResetPasswordLinkService = async (
     },
   );
   const resetUrl = `${getEnv.APP_URL}/resetPassword?token=${verifyToken}`;
-  const html = `
-  <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f7; padding: 40px 20px; margin: 0;">
-    <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
-      <h2 style="color: #1a1a1a; margin-top: 0; text-align: center;">Reset Your Password</h2>
-      
-      <p style="color: #555555; font-size: 16px; line-height: 1.6; margin-bottom: 30px; text-align: center;">
-        We received a request to reset your password. Click the button below to choose a new password. This link will expire shortly for your security.
-      </p>
-      
-      <div style="text-align: center;">
-        <a href="${resetUrl}" style="display: inline-block; background-color: #4F46E5; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; padding: 14px 28px; border-radius: 6px;">
-          Reset Password
-        </a>
-      </div>
-      
-      <p style="color: #888888; font-size: 14px; line-height: 1.5; margin-top: 40px; border-top: 1px solid #eeeeee; padding-top: 20px;">
-        If the button above doesn't work, copy and paste this link into your web browser:<br><br>
-        <a href="${resetUrl}" style="color: #4F46E5; word-break: break-all; text-decoration: underline;">
-          ${resetUrl}
-        </a>
-      </p>
-      
-      <p style="color: #aaaaaa; font-size: 12px; margin-top: 20px; text-align: center;">
-        If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
-      </p>
-    </div>
-  </div>
-`;
+  const html = RESETURLMAIL(resetUrl);
   await sendEmail(email, "Verify your email", html);
+};
+export const setLogInOTP = async (email: string) => {
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  await redisConfig.set(RedisEmailOTPKey(email), otp, "EX", 5 * 60);
+  const html = OTPMAIL(otp, 5);
+  await sendEmail(email, "Verify your email", html);
+};
+export const validateLogInOTP = async (email: string, otp: string) => {
+  const saveotp = await redisConfig.get(RedisEmailOTPKey(email));
+  if (!saveotp || saveotp != otp) {
+    throw new ApiError(400, "INVALID OTP");
+  }
+  const User: IUser | null = await isEmailPresent(email);
+  if (!User) {
+    throw new ApiError(402, "Not Registered");
+  }
+  const accessToken = createAccessToken({ _id: User._id.toString() });
+  const refreshToken = createRefreshToken({ _id: User._id.toString() });
+  redisConfig.del(RedisEmailOTPKey(email));
+  User.refreshToken = refreshToken;
+  await User.save();
+  return { accessToken, refreshToken };
 };
 export const ResetPasswordService = async (token: string): Promise<void> => {
   let payload;

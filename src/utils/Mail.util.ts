@@ -19,7 +19,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
       pass,
     },
   });
-  await transporter.sendMail({
+  transporter.sendMail({
     from,
     to,
     subject,
