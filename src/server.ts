@@ -2,6 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes";
 import postRouter from "./routes/post.routes";
+import userRouter from "./routes/user.routes";
 import cors from "cors";
 const app = express();
 app.use(
@@ -16,5 +17,5 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(authRouter);
 app.use("/post", postRouter);
-
+app.use("/user", userRouter);
 export default app;
