@@ -10,5 +10,9 @@ router.post(
   upload.single("photo"),
   createPost,
 );
-
+//need to do
+router.post("/delete", isLoggedInMiddleWare);
+router.post("/addComment", isLoggedInMiddleWare);
+router.delete("/deleteComment", isLoggedInMiddleWare);
+router.post("/likeDislike", isLoggedInMiddleWare);
 export default router;
