@@ -16,7 +16,7 @@ import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
 const router = Router();
 router.post("/register", registerHandler);
 router.post("/login", loginHandler);
-router.get("/verifyEmail", verifyEmailHandler);
+router.post("/verifyEmail", verifyEmailHandler);
 router.post("/getNewAccessToken", getNewAccessToken);
 router.get("/logout", isLoggedInMiddleWare, logoutHandler);
 router.post("/generateresetpasswordlink", GenerateResetPasswordlink);

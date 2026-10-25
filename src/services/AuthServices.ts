@@ -2,12 +2,14 @@ import isEmailPresent from "../dao/User/isEmailPresent";
 import getEnv from "../getEnv";
 import { ApiError } from "../utils/ErrorHandling.ts/APIError";
 import jwt from "jsonwebtoken";
-import { sendEmail } from "../utils/Mail.util";
 import saveUser from "../dao/User/saveUser";
 import { IUser, User } from "../models/user.model";
 import crypto from "node:crypto";
-import { redisConfig } from "../index";
-import { RedisEmailOTPKey } from "../utils/redisKeys";
+import redisConfig from "../config/redis.config";
+import {
+  RedisEmailOTPKey,
+  RedisEmailVerificationKey,
+} from "../utils/redisKeys";
 import {
   createAccessToken,
   createRefreshToken,
@@ -16,7 +18,9 @@ import {
 } from "../utils/token.util";
 import { Response } from "express";
 import getGoogleClient from "../utils/getGoogleClient";
-import { OTPMAIL, RESETURLMAIL, VERIFYURL } from "../utils/MailHTMLConstants";
+import { OTPMAIL, RESETURLMAIL } from "../utils/MailHTMLConstants";
+import mongoose from "mongoose";
+import { emailEnqueue } from "../queues/producer/producer";
 type registerObject = {
   email: string;
   name: string;
@@ -36,42 +40,39 @@ export const sendRegisterMail = async ({
   if (exist) {
     throw new ApiError(409, "Email already in use");
   }
-  const verifyToken = jwt.sign(
-    {
-      name,
-      email,
-      password,
-    },
-    getEnv.JWT_ACCESS_SECRET,
-    {
-      expiresIn: "1d",
-    },
-  );
-  const verifyUrl = `${getEnv.APP_URL}/verifyEmail?token=${verifyToken}`;
-  const html = VERIFYURL(verifyUrl);
-  await sendEmail(email, "Verify your email", html);
+  let Token = crypto.randomInt(100000, 1000000).toString();
+  const html = OTPMAIL(Token, 5);
+  let key = RedisEmailVerificationKey(email, Token);
+  await redisConfig.hset(key, {
+    email: email,
+    name: name,
+    password: password,
+  });
+  await redisConfig.expire(key, 5 * 60);
+  await emailEnqueue(email, "Email Verification OTP", html);
 };
-export const registerUser = async (token: string) => {
-  let payload;
-  try {
-    payload = jwt.verify(token, getEnv.JWT_ACCESS_SECRET) as {
-      email: string;
-      name: string;
-      password: string;
-    };
-  } catch (error) {
+export const registerUser = async (email: string, otp: string) => {
+  let key = RedisEmailVerificationKey(email, otp);
+  let payload = await redisConfig.hgetall(key);
+  if (!payload || Object.keys(payload).length === 0) {
     throw new ApiError(401, "Invalid Request");
   }
   const isPresent = await isEmailPresent(payload.email);
   if (isPresent != null) {
     throw new ApiError(401, "Request expired");
   }
+  const newUserId = new mongoose.Types.ObjectId();
+  const accessToken = createAccessToken({ _id: newUserId.toString() });
+  const refreshToken = createRefreshToken({ _id: newUserId.toString() });
   let input = {
+    _id: newUserId,
     name: payload.name,
     email: payload.email,
     password: payload.password,
+    refreshToken: refreshToken,
   };
   await saveUser(input);
+  return { accessToken, refreshToken };
 };
 export const logInService = async ({ email, password }: loginObject) => {
   const User: IUser | null = await isEmailPresent(email);
@@ -132,13 +133,13 @@ export const GenerateResetPasswordLinkService = async (
   );
   const resetUrl = `${getEnv.APP_URL}/resetPassword?token=${verifyToken}`;
   const html = RESETURLMAIL(resetUrl);
-  await sendEmail(email, "Verify your email", html);
+  await emailEnqueue(email, "Verify your email", html);
 };
 export const setLogInOTP = async (email: string) => {
   const otp = crypto.randomInt(100000, 1000000).toString();
   await redisConfig.set(RedisEmailOTPKey(email), otp, "EX", 5 * 60);
   const html = OTPMAIL(otp, 5);
-  await sendEmail(email, "Verify your email", html);
+  await emailEnqueue(email, "Verify your email", html);
 };
 export const validateLogInOTP = async (email: string, otp: string) => {
   const saveotp = await redisConfig.get(RedisEmailOTPKey(email));

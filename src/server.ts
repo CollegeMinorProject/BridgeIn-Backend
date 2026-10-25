@@ -7,9 +7,9 @@ import cors from "cors";
 const app = express();
 app.use(
   cors({
-    origin: "http://localhost:5173", // Vite's default dev port
+    origin: "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true, // only needed if you're sending cookies/auth headers
+    credentials: true,
   }),
 );
 app.use(express.json());

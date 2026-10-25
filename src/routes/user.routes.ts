@@ -9,7 +9,8 @@ import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
 const router = Router();
 router.use(isLoggedInMiddleWare);
 router.post("/followUnfollow", followUnfollow);
-export default router;
 router.get("/follower/:id", getFollower);
 router.get("/following/:id", getFollowing);
-router.get("/getMyfeed");
+export default router;
+
+// router.get("/getMyfeed");

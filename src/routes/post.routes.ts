@@ -11,8 +11,9 @@ router.post(
   createPost,
 );
 //need to do
-router.post("/delete", isLoggedInMiddleWare);
-router.post("/addComment", isLoggedInMiddleWare);
-router.delete("/deleteComment", isLoggedInMiddleWare);
-router.post("/likeDislike", isLoggedInMiddleWare);
+// router.post("/delete", isLoggedInMiddleWare);
+// router.post("/addComment", isLoggedInMiddleWare);
+// router.delete("/deleteComment", isLoggedInMiddleWare);
+// router.post("/likeDislike", isLoggedInMiddleWare);
+// router.get("/:id",isLoggedInMiddleWare);
 export default router;

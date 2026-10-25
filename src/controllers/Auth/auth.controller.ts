@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
   loginSchema,
+  RegisterEmailOTPVerificationSchema,
   registerSchema,
   zodHandleOTPSchema,
   zodisEmail,
@@ -31,7 +32,7 @@ export const registerHandler = asyncHandler(
   async (req: Request, res: Response) => {
     const result = registerSchema.safeParse(req.body);
     if (!result.success) {
-      throw new ApiError(403, "Invalid data");
+      throw new ApiError(403, "Invalid Request");
     }
     result.data.email = result.data.email.trim().toLowerCase();
     await sendRegisterMail(result.data);
@@ -43,12 +44,24 @@ export const registerHandler = asyncHandler(
 //working
 export const verifyEmailHandler = asyncHandler(
   async (req: Request, res: Response) => {
-    const token = req.query.token as string | undefined;
-    if (!token) {
-      throw new ApiError(401, "Invalid Request");
+    const result = RegisterEmailOTPVerificationSchema.safeParse(req.body);
+    if (!result.success) {
+      throw new ApiError(403, "Invalid Request");
     }
-    await registerUser(token);
-    return res.status(201).json(new ApiResponse(201, "User Email Verified"));
+    let { refreshToken, accessToken } = await registerUser(
+      result.data.email,
+      result.data.otp,
+    );
+    setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
+    return res
+      .status(201)
+      .json(
+        new ApiResponse(
+          201,
+          { accessToken, refreshToken },
+          "User Email Verified",
+        ),
+      );
   },
 );
 //working

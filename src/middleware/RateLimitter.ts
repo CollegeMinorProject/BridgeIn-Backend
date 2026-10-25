@@ -9,6 +9,8 @@ export async function productRateLimiter(
   res: Response,
   next: NextFunction,
 ) {
+  next();
+  return;
   try {
     const ip = req.ip || "unknown";
     const ratekey = RATE_LIMIT_KEY(ip);

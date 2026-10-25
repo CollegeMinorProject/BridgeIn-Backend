@@ -35,15 +35,11 @@ const messageSchema = new Schema(
     },
   },
   {
-    // Automatically creates 'createdAt' and 'updatedAt' timestamps
     timestamps: true,
   },
 );
 
-// Compound index to quickly fetch and paginate messages in a conversation sorted chronologically
 messageSchema.index({ conversation_id: 1, createdAt: -1 });
-
-// Post-save middleware to automatically update the parent Conversation's last message preview
 messageSchema.post("save", async function (doc, next) {
   try {
     const Conversation = mongoose.model("Conversation");

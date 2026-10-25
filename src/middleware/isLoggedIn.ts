@@ -6,14 +6,15 @@ export const isLoggedInMiddleWare = async (
   res: Response,
   next: NextFunction,
 ) => {
-  let accessToken: string | null = req.cookies.accessToken;
-  if (accessToken == null) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).send("Not authorised");
     return;
   }
+  const accessToken = authHeader.split(" ")[1];
   try {
-    let playLoad = verifyAccessToken(accessToken) as { _id: string };
-    req.user = playLoad._id;
+    const payload = verifyAccessToken(accessToken) as { _id: string };
+    req.user = payload._id;
   } catch (error) {
     res.status(401).send("Not authorised");
     return;
