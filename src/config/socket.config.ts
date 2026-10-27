@@ -4,6 +4,14 @@ import jwt from "jsonwebtoken";
 
 let io: Server | null = null;
 
+// 1. Store online users: { userId: socketId }
+const userSocketMap: Record<string, string> = {};
+
+// Helper function to find a specific user's socket connection
+export const getReceiverSocketId = (receiverId: string): string | undefined => {
+  return userSocketMap[receiverId];
+};
+
 const getAllowedOrigins = (): string[] => {
   const rawOrigins = process.env.CLIENT_URL || "http://localhost:5173";
 
@@ -29,7 +37,7 @@ const getUserIdFromToken = (decoded: unknown): string | null => {
     return null;
   }
 
-  const userId = "userId" in decoded ? decoded.userId : undefined;
+  const userId = "userId" in decoded ? (decoded as Record<string, unknown>).userId : undefined;
 
   return typeof userId === "string" && userId.trim().length > 0 ? userId : null;
 };
@@ -78,13 +86,29 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
   });
 
   io.on("connection", (socket) => {
+    const userId = socket.data.userId as string;
+
     if (process.env.NODE_ENV === "development") {
-      console.log("[Socket] A secure client connected");
+      console.log(`[Socket] User ${userId} connected`);
     }
+
+    // 2. Add user to the map when they connect
+    if (userId) {
+      userSocketMap[userId] = socket.id;
+    }
+
+    // 3. Broadcast the updated list of online users to ALL connected clients
+    io!.emit("getOnlineUsers", Object.keys(userSocketMap));
 
     socket.on("disconnect", () => {
       if (process.env.NODE_ENV === "development") {
-        console.log("[Socket] A secure client disconnected");
+        console.log(`[Socket] User ${userId} disconnected`);
+      }
+
+      // 4. Remove user from map on disconnect and broadcast update
+      if (userId) {
+        delete userSocketMap[userId];
+        io!.emit("getOnlineUsers", Object.keys(userSocketMap));
       }
     });
   });
