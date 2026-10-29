@@ -1,5 +1,6 @@
 import { JobPost } from '../../models/jobPost.model';
 import { asyncHandler } from '../../utils/ErrorHandling.ts/asyncHandler';
+import '../../models/user.model'; 
 
 export const createJob = asyncHandler(async (req: any, res: any) => {
   const { title, description, requirements } = req.body;
@@ -18,7 +19,7 @@ export const createJob = asyncHandler(async (req: any, res: any) => {
   });
 });
 
-export const getJobs = asyncHandler(async (req: any, res: any) => {
+export const getJobs = asyncHandler(async (_req: any, res: any) => {
   const jobs = await JobPost.find({ isOpen: true }).sort({ createdAt: -1 }).populate('employer_id', 'name email');
   return res.status(200).json({
     statusCode: 200,

@@ -9,19 +9,13 @@ import { addComment, getCommentsByPost, updateComment, deleteComment } from "../
 
 const router = Router();
 
-// This protects all routes below it automatically
-//router.use(isLoggedInMiddleWare);
-// router.use(isLoggedInMiddleWare);
-// router.use(isLoggedInMiddleWare);
-router.use((req: any, res: any, next: any) => {
-  req.user = { _id: "60d0fe4f5311236168a109ca" }; // Injects a fake valid MongoDB ID
-  next();
-});
+// Activate the REAL authentication middleware so it reads your Postman access token
+router.use(isLoggedInMiddleWare);
 
 // Friend's existing post route
 router.post("/create", upload.single("photo"), createPost);
 
-// Your new Comment routes (replacing the commented-out To-Dos)
+// Your new Comment routes
 router.post("/:postId/comments", addComment);
 router.get("/:postId/comments", getCommentsByPost);
 router.patch("/comments/:commentId", updateComment);
