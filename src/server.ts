@@ -1,8 +1,10 @@
 import express from "express";
+// @ts-ignore: cookie-parser type declarations are not installed.
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes";
 import postRouter from "./routes/post.routes";
 import userRouter from "./routes/user.routes";
+import messageRouter from "./routes/message.routes";
 import cors from "cors";
 import jobRoutes from './routes/job.routes';
 import followerRoutes from './routes/follower.routes';
@@ -23,4 +25,5 @@ app.use("/post", postRouter);
 app.use("/user", userRouter);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/connections', followerRoutes);
+app.use("/message", messageRouter);
 export default app;

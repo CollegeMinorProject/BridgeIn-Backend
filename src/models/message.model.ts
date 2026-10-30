@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const messageSchema = new Schema(
@@ -18,8 +18,8 @@ const messageSchema = new Schema(
     text: {
       type: String,
       trim: true,
-      // Conditional requirement: 'text' is required only if 'attachmentUrl' is missing
-      required: function () {
+      // Explicitly define the 'this' context and the boolean return type
+      required: function (this: { attachmentUrl?: string | null }): boolean {
         return !this.attachmentUrl;
       },
     },
@@ -36,11 +36,19 @@ const messageSchema = new Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 messageSchema.index({ conversation_id: 1, createdAt: -1 });
-messageSchema.post("save", async function (doc, next) {
+interface MessageDocument {
+  conversation_id: mongoose.Types.ObjectId;
+  text?: string;
+  createdAt: Date;
+}
+
+type PostSaveNext = (error?: Error) => void;
+
+messageSchema.post("save", async function (doc: MessageDocument, next: PostSaveNext) {
   try {
     const Conversation = mongoose.model("Conversation");
     const previewText = doc.text ? doc.text : "📎 Attachment";
@@ -51,7 +59,7 @@ messageSchema.post("save", async function (doc, next) {
     });
     next();
   } catch (error) {
-    next(error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
