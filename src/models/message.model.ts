@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const messageSchema = new Schema(
@@ -40,9 +40,15 @@ const messageSchema = new Schema(
 );
 
 messageSchema.index({ conversation_id: 1, createdAt: -1 });
+interface MessageDocument {
+  conversation_id: mongoose.Types.ObjectId;
+  text?: string;
+  createdAt: Date;
+}
 
-// Added explicit types for 'doc' and 'next'
-messageSchema.post("save", async function (doc: any, next: (err?: Error) => void) {
+type PostSaveNext = (error?: Error) => void;
+
+messageSchema.post("save", async function (doc: MessageDocument, next: PostSaveNext) {
   try {
     const Conversation = mongoose.model("Conversation");
     const previewText = doc.text ? doc.text : "📎 Attachment";
@@ -53,7 +59,7 @@ messageSchema.post("save", async function (doc: any, next: (err?: Error) => void
     });
     next();
   } catch (error) {
-    next(error as Error);
+    next(error instanceof Error ? error : new Error(String(error)));
   }
 });
 
