@@ -181,13 +181,16 @@ export const googleAuthCallBackService = async (
 ): Promise<void> => {
   const client = getGoogleClient();
   const { tokens } = await client.getToken(code);
+
   if (!tokens.id_token) {
-    throw new ApiError(500, "No google id_token is present");
+    throw new ApiError(500, "Internal Server Error");
   }
+
   const ticket = await client.verifyIdToken({
     idToken: tokens.id_token,
     audience: getEnv.GOOGLE_CLIENT_ID as string,
   });
+
   const payload = ticket.getPayload();
   const name = payload?.name;
   const email = payload?.email;
@@ -197,16 +200,17 @@ export const googleAuthCallBackService = async (
   }
   const normalizedEmail = email.toLowerCase().trim();
   let user = await User.findOne({ email: normalizedEmail });
+
   if (!user) {
     const randomPassword = crypto.randomBytes(16).toString("hex");
     let input = {
       name: name,
-      email: email,
+      email: normalizedEmail,
       password: randomPassword,
     };
     user = await saveUser(input);
   }
-  let accessToken = createAccessToken({ _id: user.id });
-  let refreshToken = createRefreshToken({ _id: user.id });
+  let accessToken = createAccessToken({ _id: user._id });
+  let refreshToken = createRefreshToken({ _id: user._id });
   setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
 };

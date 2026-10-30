@@ -8,7 +8,6 @@ export const asyncHandler = (
       await fn(req, res, next);
     } catch (error: any) {
       const statusCode = error.statusCode || 500;
-
       res.status(statusCode).json({
         statusCode: statusCode,
         success: false,

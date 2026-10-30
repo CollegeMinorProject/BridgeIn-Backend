@@ -28,10 +28,6 @@ const notificationSchema = new mongoose.Schema(
       enum: NOTIFICATION_TYPES,
       required: true,
     },
-    reference_id: {
-      type: String,
-      required: true,
-    },
     isRead: {
       type: Boolean,
       default: false,

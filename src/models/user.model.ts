@@ -13,22 +13,18 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
-type UserDocument = mongoose.Document &
-  mongoose.InferSchemaType<typeof userSchema>;
-userSchema.pre("save", async function (this: UserDocument) {
+type UserBaseType = mongoose.InferSchemaType<typeof userSchema>;
+export interface IUser extends UserBaseType, mongoose.Document {
+  comparePassword(val: string): Promise<boolean>;
+}
+userSchema.pre("save", async function (this: IUser) {
   if (this.isModified("password")) {
     let hash = await bcrypt.hash(this.password, 10);
     this.password = hash;
   }
 });
-userSchema.methods.comparePassword = async function (
-  this: UserDocument,
-  val: string,
-) {
+
+userSchema.methods.comparePassword = async function (this: IUser, val: string) {
   return bcrypt.compare(val, this.password);
 };
-export type IUser = mongoose.Document &
-  mongoose.InferSchemaType<typeof userSchema> & {
-    comparePassword(val: string): Promise<boolean>;
-  };
-export const User = mongoose.model("User", userSchema);
+export const User = mongoose.model<IUser>("User", userSchema);

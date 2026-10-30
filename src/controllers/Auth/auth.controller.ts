@@ -100,7 +100,7 @@ export const getNewAccessToken = asyncHandler(
 //working
 export const logoutHandler = asyncHandler(
   async (req: Request, res: Response) => {
-    const id = req.user;
+    const id = req.user as string;
     await logOutService(res, id);
     return res.status(200).json({
       message: "Logged out",
@@ -134,17 +134,15 @@ export const ResetPassword = async (req: Request, res: Response) => {
 //working
 export const googleAuthStartHandler = asyncHandler(
   async (_req: Request, res: Response) => {
-    try {
-      const client = getGoogleClient();
-      const url = client.generateAuthUrl({
-        access_type: "offline",
-        prompt: "consent",
-        scope: ["openid", "email", "profile"],
-      });
-      return res.redirect(url);
-    } catch (error) {
-      throw new ApiError(500, "Internal Server Error");
-    }
+    const client = getGoogleClient();
+
+    const url = client.generateAuthUrl({
+      access_type: "offline",
+      prompt: "consent",
+      scope: ["openid", "email", "profile"],
+    });
+
+    res.redirect(url);
   },
 );
 export const googleAuthCallBackHandler = asyncHandler(
