@@ -4,7 +4,7 @@ export interface IJobPost extends Document {
   employer_id: Types.ObjectId;
   title: string;
   description: string;
-  requirements: string;
+  requirements: string[];
   isOpen: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -14,7 +14,7 @@ const jobPostSchema = new Schema<IJobPost>(
   {
     employer_id: {
       type: Schema.Types.ObjectId,
-      ref: "user",
+      ref: "User",
       required: true,
       index: true,
     },
@@ -30,7 +30,7 @@ const jobPostSchema = new Schema<IJobPost>(
       trim: true,
     },
     requirements: {
-      type: String,
+      type: [String],
       required: [true, "Job requirements are required"],
       trim: true,
     },

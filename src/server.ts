@@ -4,6 +4,9 @@ import authRouter from "./routes/auth.routes";
 import postRouter from "./routes/post.routes";
 import userRouter from "./routes/user.routes";
 import cors from "cors";
+import jobRoutes from './routes/job.routes';
+import followerRoutes from './routes/follower.routes';
+
 const app = express();
 app.use(
   cors({
@@ -18,4 +21,6 @@ app.use(cookieParser());
 app.use(authRouter);
 app.use("/post", postRouter);
 app.use("/user", userRouter);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/connections', followerRoutes);
 export default app;
