@@ -1,6 +1,15 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../utils/token.util";
 
+// Tells TypeScript that it is safe to use req.user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: string; 
+    }
+  }
+}
+
 export const isLoggedInMiddleWare = async (
   req: Request,
   res: Response,

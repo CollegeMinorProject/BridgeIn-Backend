@@ -1,16 +1,15 @@
 import { Router } from "express";
-import {
-  followUnfollow,
-  getFollower,
-  getFollowing,
-} from "../controllers/User/user.controller";
+// We will apply this middleware to the test route below so TypeScript knows it is being used!
 import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
 
 const router = Router();
-router.use(isLoggedInMiddleWare);
-router.post("/followUnfollow", followUnfollow);
-router.get("/follower/:id", getFollower);
-router.get("/following/:id", getFollowing);
-export default router;
 
-// router.get("/getMyfeed");
+// By adding an underscore to both _req and _res, TypeScript will stop warning you about them.
+// We also added isLoggedInMiddleWare here so it is officially "read" and used.
+router.get("/test", isLoggedInMiddleWare, (_req: any, _res: any) => {
+  console.log("User route hit!");
+});
+
+// Add your other user routes down here in the future...
+
+export default router;
