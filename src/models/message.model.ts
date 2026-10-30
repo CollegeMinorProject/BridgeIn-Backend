@@ -18,8 +18,8 @@ const messageSchema = new Schema(
     text: {
       type: String,
       trim: true,
-      // Conditional requirement: 'text' is required only if 'attachmentUrl' is missing
-      required: function () {
+      // Explicitly define the 'this' context and the boolean return type
+      required: function (this: { attachmentUrl?: string | null }): boolean {
         return !this.attachmentUrl;
       },
     },
@@ -36,11 +36,13 @@ const messageSchema = new Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 messageSchema.index({ conversation_id: 1, createdAt: -1 });
-messageSchema.post("save", async function (doc, next) {
+
+// Added explicit types for 'doc' and 'next'
+messageSchema.post("save", async function (doc: any, next: (err?: Error) => void) {
   try {
     const Conversation = mongoose.model("Conversation");
     const previewText = doc.text ? doc.text : "📎 Attachment";
@@ -51,7 +53,7 @@ messageSchema.post("save", async function (doc, next) {
     });
     next();
   } catch (error) {
-    next(error);
+    next(error as Error);
   }
 });
 
