@@ -1,4 +1,5 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+
 const { Schema } = mongoose;
 
 const likeSchema = new Schema(
@@ -11,7 +12,7 @@ const likeSchema = new Schema(
     },
     LikedBy: {
       type: Schema.Types.ObjectId,
-      ref: "user",
+      ref: "User",
       required: true,
       index: true,
     },
@@ -20,6 +21,9 @@ const likeSchema = new Schema(
     timestamps: true,
   },
 );
+
 likeSchema.index({ postid: 1, LikedBy: 1 }, { unique: true });
 
-module.exports = mongoose.model("like", likeSchema);
+const Like = mongoose.model("like", likeSchema);
+
+export default Like;

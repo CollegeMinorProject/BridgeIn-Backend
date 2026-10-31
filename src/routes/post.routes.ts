@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
-import { createPost } from "../controllers/Post/post.controller";
+import { createPost,likePost,unlikePost,getLikeDetails,} from "../controllers/Post/post.controller";
 import { upload } from "../middleware/multer.middleware";
+
 
 // Your new controller imports
 import { createJob, getJobs, updateJobStatus, deleteJob } from "../controllers/Post/job.controller";
@@ -14,6 +15,13 @@ router.use(isLoggedInMiddleWare);
 
 // Friend's existing post route
 router.post("/create", upload.single("photo"), createPost);
+
+// Like and Unlike routes
+router.post("/:postId/like", likePost);
+router.delete("/:postId/like", unlikePost);
+
+// Get like details
+router.get("/:postId/likes", getLikeDetails);
 
 // Your new Comment routes
 router.post("/:postId/comments", addComment);
