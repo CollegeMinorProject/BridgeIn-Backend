@@ -141,13 +141,13 @@ export const googleAuthStartHandler = asyncHandler(
       prompt: "consent",
       scope: ["openid", "email", "profile"],
     });
-
+    console.log(url);
     res.redirect(url);
   },
 );
 export const googleAuthCallBackHandler = asyncHandler(
   async (req: Request, res: Response) => {
-    const code = req.query.code as string | undefined;
+    const code = req.body.code;
     if (!code) {
       throw new ApiError(400, "Missing code in callback");
     }

@@ -1,4 +1,3 @@
-import "dotenv/config"; //to ensure environment variables load before the server starts
 import app from "./server";
 import { connectToDB } from "./config/db.confit";
 import getEnv from "./getEnv";

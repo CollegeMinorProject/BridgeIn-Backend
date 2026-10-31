@@ -18,6 +18,7 @@ const jobPostSchema = new Schema<IJobPost>(
       required: true,
       index: true,
     },
+
     title: {
       type: String,
       required: [true, "Job title is required"],

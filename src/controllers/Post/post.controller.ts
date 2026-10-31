@@ -29,8 +29,3 @@ export const createPost = asyncHandler(async (req: Request, res: Response) => {
 });
 //delete post
 //update post
-//like dislike post
-//get like details
-//comment on post
-//get comment in bunch
-//delete comment

@@ -4,7 +4,6 @@ import {
   verifyEmailHandler,
   loginHandler,
   logoutHandler,
-  googleAuthStartHandler,
   googleAuthCallBackHandler,
   getNewAccessToken,
   GenerateResetPasswordlink,
@@ -21,8 +20,8 @@ router.post("/getNewAccessToken", getNewAccessToken);
 router.get("/logout", isLoggedInMiddleWare, logoutHandler);
 router.post("/generateresetpasswordlink", GenerateResetPasswordlink);
 router.get("/resetpassword", ResetPassword);
-router.get("/google", googleAuthStartHandler);
-router.get("/google/callback", googleAuthCallBackHandler);
+router.post("/google/callback", googleAuthCallBackHandler);
 router.post("/set-OTP", sendLogInWithOTPEmailHandler);
 router.post("/verifyOTP", verifyOTPHandler);
+router.post("/logout", logoutHandler);
 export default router;

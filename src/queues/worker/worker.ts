@@ -25,4 +25,12 @@ export const notificationWorker = new Worker(
     console.log(job);
     await createNotification({ ...job.data });
   },
+  { connection: redisConfig },
 );
+notificationWorker.on("completed", (job) => {
+  console.log(`Job ${job.id} completed!`);
+});
+
+notificationWorker.on("failed", (job, err) => {
+  console.error(`Job ${job?.id} failed with error:`, err.message);
+});
