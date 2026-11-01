@@ -66,15 +66,13 @@ export const getMessagesService = async (
   }
 
   // Count total messages in this specific conversation
-  //use promise.all to handle totalmessages and messages simultaneously
-  const totalMessages = await Message.countDocuments({
-    conversation_id: conversation._id,
-  });
-
-  // Fetch the latest 'limit' amount of messages, then reverse them chronologically
-  const messages = await Message.find({ conversation_id: conversation._id })
-    .sort({ createdAt: -1 })
-    .limit(limit);//promise.all
+  //used promise.all to handle totalmessages and messages simultaneously
+const [totalMessages, messages] = await Promise.all([
+    Message.countDocuments({ conversation_id: conversation._id }),
+    Message.find({ conversation_id: conversation._id })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+  ]);
 
   const formattedMessages = messages
     .map((msg: any) => ({
