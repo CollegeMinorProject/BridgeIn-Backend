@@ -19,8 +19,9 @@ export const addComment = asyncHandler(async (req: any, res: any) => {
 });
 
 export const getCommentsByPost = asyncHandler(async (req: any, res: any) => {
-  const { postId } = req.params;
-  //use Pagination from here get Limit and page from params if not provided take default Limit 30 and page 1
+  const { postId, limit, page } = req.params;
+
+  //use Pagination from here get Limit and page from params if not provided take default Limit 30 and page 1 also total no comment
   const comments = await Comment.find({ postid: postId })
     .populate("commenter_id", "name profilePic")
     .sort({ createdAt: -1 });
