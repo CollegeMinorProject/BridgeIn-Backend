@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 const conversationSchema = new Schema(
@@ -35,18 +35,22 @@ conversationSchema.index(
   { participant1_id: 1, participant2_id: 1 },
   { unique: true },
 );
-conversationSchema.pre("validate", function (next) {
-  if (this.participant1_id && this.participant2_id) {
-    const id1 = this.participant1_id.toString();
-    const id2 = this.participant2_id.toString();
+type Conversation = mongoose.InferSchemaType<typeof conversationSchema>;
 
-    if (id1 > id2) {
-      const temp = this.participant1_id;
-      this.participant1_id = this.participant2_id;
-      this.participant2_id = temp;
+conversationSchema.pre(
+  "validate",
+  function (this: mongoose.HydratedDocument<Conversation>) {
+    if (this.participant1_id && this.participant2_id) {
+      const id1 = this.participant1_id.toString();
+      const id2 = this.participant2_id.toString();
+
+      if (id1 > id2) {
+        const temp = this.participant1_id;
+        this.participant1_id = this.participant2_id;
+        this.participant2_id = temp;
+      }
     }
-  }
-  next();
-});
+  },
+);
 
-module.exports = mongoose.model("Conversation", conversationSchema);
+export default mongoose.model("Conversation", conversationSchema);

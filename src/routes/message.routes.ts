@@ -1,10 +1,15 @@
 import { Router } from "express";
-import { sendMessage, getMessages } from "../controllers/Message/message.controller";
-import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
+import { sendMessage, getMessages } from "../controllers/Message/message.controller"; 
+import { isLoggedInMiddleWare } from "../middleware/isLoggedIn"; 
 
 const router = Router();
 
-router.get("/:id", isLoggedInMiddleWare, getMessages);
-router.post("/send/:id", isLoggedInMiddleWare, sendMessage);
+router.use(isLoggedInMiddleWare);
+
+// GET route still needs the ID in the URL to know whose chat history to fetch
+router.get("/:id", getMessages);
+
+// POST route no longer needs :id in the URL
+router.post("/send", sendMessage);
 
 export default router;

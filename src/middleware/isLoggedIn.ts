@@ -23,7 +23,7 @@ export const isLoggedInMiddleWare = async (
   const accessToken = authHeader.split(" ")[1];
   try {
     const payload = verifyAccessToken(accessToken) as { _id: string };
-    req.user = payload._id;
+    (req as Request & { user: string }).user = payload._id;
   } catch (error) {
     res.status(401).send("Not authorised");
     return;

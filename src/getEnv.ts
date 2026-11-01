@@ -1,3 +1,6 @@
+/* This file creates one central object called getEnv.
+Instead of writing process.env.PORT everywhere in the project, we write getEnv.Port.
+The || part means: “If the environment variable is missing, use this default value.”*/
 let getEnv = {
   Port: process.env.PORT || 5000,
   MONGO_URL: process.env.MONGO_URL || "",

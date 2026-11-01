@@ -1,108 +1,48 @@
 import { Request, Response } from "express";
-import { getIO, getReceiverSocketId } from "../../config/socket.config";
-import Message from "../../models/message.model";
-import Conversation from "../../models/conversation.model";
+import { asyncHandler } from "../../utils/ErrorHandling.ts/asyncHandler";
+import { ApiError } from "../../utils/ErrorHandling.ts/APIError";
+import { ApiResponse } from "../../utils/ErrorHandling.ts/APIResponse";
+import { sendMessageSchema } from "./message.schema";
+import { sendMessageService, getMessagesService } from "../../services/MessageServices";
 
-export const sendMessage = async (req: Request, res: Response) => {
-  try {
-    const { text, image } = req.body;
-    const receiverId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-    if (!receiverId) {
-      return res.status(400).json({ error: "Receiver ID is required." });
+export const sendMessage = asyncHandler(
+  async (req: Request, res: Response) => {
+    // 1. Validate body and extract receiverId using Zod safeParse
+    const parsedData = sendMessageSchema.safeParse(req.body);
+    
+    if (!parsedData.success) {
+      throw new ApiError(400, "Invalid Request");
     }
 
-    const senderId = (req as any).user?._id;
+    const { receiverId, text, image } = parsedData.data;
+    const senderId = (req as any).user;
+    // 2. Pass validated data to the Service Layer
+    const message = await sendMessageService(senderId, receiverId, text, image);
 
-    if (!senderId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    // 1. Find existing conversation or create a new one
-    let conversation = await Conversation.findOne({
-      $or: [
-        { participant1_id: senderId, participant2_id: receiverId },
-        { participant1_id: receiverId, participant2_id: senderId },
-      ],
-    });
-
-    if (!conversation) {
-      conversation = await Conversation.create({
-        participant1_id: senderId,
-        participant2_id: receiverId,
-      });
-    }
-
-    // 2. Create the message using your team's schema fields
-    const newMessage = new Message({
-      conversation_id: conversation._id,
-      sender_id: senderId,
-      text: text || "",
-      attachmentUrl: image || null,
-    });
-
-    await newMessage.save();
-
-    // 3. Format the message to match what the React frontend expects
-    const formattedMessage = {
-      _id: newMessage._id,
-      senderId: newMessage.sender_id,
-      text: newMessage.text,
-      image: newMessage.attachmentUrl,
-      createdAt: newMessage.createdAt,
-    };
-
-    // 4. Real-Time Socket.io Delivery
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      const io = getIO();
-      io.to(receiverSocketId).emit("newMessage", formattedMessage);
-    }
-
-    return res.status(201).json(formattedMessage);
-  } catch (error) {
-    console.error("Error in sendMessage:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    // 3. Return standardized ApiResponse
+    return res
+      .status(201)
+      .json(new ApiResponse(201, message, "Message sent successfully"));
   }
-};
+);
 
-export const getMessages = async (req: Request, res: Response) => {
-  try {
+export const getMessages = asyncHandler(
+  async (req: Request, res: Response) => {
     const userToChatId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const myId = (req as any).user?._id;
 
     if (!userToChatId || !myId) {
-      return res.status(400).json({ error: "Missing user IDs" });
+      throw new ApiError(400, "Missing user IDs");
     }
 
-    // 1. Find the conversation document
-    const conversation = await Conversation.findOne({
-      $or: [
-        { participant1_id: myId, participant2_id: userToChatId },
-        { participant1_id: userToChatId, participant2_id: myId },
-      ],
-    });
+    // Extract pagination limit from query params (e.g., /message/123?limit=20)
+    // Defaults to 50 if no limit is provided in the request
+    const limit = parseInt(req.query.limit as string) || 50;
 
-    if (!conversation) {
-      // If no conversation exists yet, return an empty array
-      return res.status(200).json([]);
-    }
-
-    // 2. Fetch all messages in this conversation, sorted chronologically
-    const messages = await Message.find({ conversation_id: conversation._id }).sort({ createdAt: 1 });
-
-    // 3. Map database fields to the frontend's expected properties
-    const formattedMessages = messages.map((msg: any) => ({
-      _id: msg._id,
-      senderId: msg.sender_id,
-      text: msg.text,
-      image: msg.attachmentUrl,
-      createdAt: msg.createdAt,
-    }));
-
-    return res.status(200).json(formattedMessages);
-  } catch (error) {
-    console.error("Error in getMessages:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    // Call the newly extracted service layer
+    const { messages, totalMessages } = await getMessagesService(myId, userToChatId, limit);
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { messages, totalMessages }, "Messages retrieved successfully"));
   }
-};
+);

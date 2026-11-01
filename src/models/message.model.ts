@@ -1,4 +1,4 @@
-import mongoose = require("mongoose");
+import mongoose from "mongoose"
 const { Schema } = mongoose;
 
 const messageSchema = new Schema(
@@ -63,4 +63,4 @@ messageSchema.post("save", async function (doc: MessageDocument, next: PostSaveN
   }
 });
 
-module.exports = mongoose.model("Message", messageSchema);
+export default mongoose.model("Message", messageSchema);
