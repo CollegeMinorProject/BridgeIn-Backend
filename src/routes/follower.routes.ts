@@ -13,9 +13,8 @@ const router = Router();
 router.use(isLoggedInMiddleWare);
 
 // The parameter :targetUserId MUST match what we used in the controller code
-router.post("/follow/:targetUserId", followUser);
-router.post("/unfollow/:targetUserId", unfollowUser);
-router.get("/:userId/followers", getFollowers);
-router.get("/:userId/following", getFollowing);
-
+router.post('/follow', followUser);
+router.post('/unfollow', unfollowUser);
+router.get('/:userId/followers', getFollowers);
+router.get('/:userId/following', getFollowing);
 export default router;
