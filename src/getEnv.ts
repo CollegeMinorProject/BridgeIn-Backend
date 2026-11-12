@@ -1,23 +1,32 @@
-/* This file creates one central object called getEnv.
-Instead of writing process.env.PORT everywhere in the project, we write getEnv.Port.
-The || part means: “If the environment variable is missing, use this default value.”*/
+function getRequiredEnv(key: string) {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value;
+}
+function getOptionalEnv(key: string, defaultValue = "") {
+  return process.env[key] || defaultValue;
+}
+
 let getEnv = {
-  Port: process.env.PORT || 5000,
-  MONGO_URL: process.env.MONGO_URL || "",
-  SMTP_HOST: process.env.SMTP_HOST || "",
-  SMTP_PORT: process.env.SMTP_PORT || 587,
-  SMTP_PASS: process.env.SMTP_PASS || "",
-  SMTP_USER: process.env.SMTP_USER || "",
-  EMAIL_FROM: process.env.EMAIL_FROM || "",
-  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET || "",
-  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "",
-  APP_URL: `${process.env.APP_URL}:${process.env.PORT || 5000}`,
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || "",
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
-  GOOGLE_REDIRECT_URL: process.env.GOOGLE_REDIRECT_URL,
-  CLOUDINARY_SECRET: process.env.CLOUDINARY_SECRET || "",
-  CLOUDINAEY_API_KEY: process.env.CLOUDINARY_APIKEY || "",
-  CLOUDNAME: process.env.CLOUDNAME || "",
-  REDIS_URL: process.env.REDIS_URL || "",
+  Port: getOptionalEnv("PORT", "5000"),
+  MONGO_URL: getRequiredEnv("MONGO_URL"),
+  SMTP_HOST: getRequiredEnv("SMTP_HOST"),
+  SMTP_PORT: getOptionalEnv("SMTP_PORT", "587"),
+  SMTP_PASS: getRequiredEnv("SMTP_PASS"),
+  SMTP_USER: getRequiredEnv("SMTP_USER"),
+  EMAIL_FROM: getRequiredEnv("EMAIL_FROM"),
+  JWT_ACCESS_SECRET: getRequiredEnv("JWT_ACCESS_SECRET"),
+  JWT_REFRESH_SECRET: getRequiredEnv("JWT_REFRESH_SECRET"),
+  APP_URL: `${getRequiredEnv("APP_URL")}:${getOptionalEnv("PORT", "5000")}`,
+  GOOGLE_CLIENT_SECRET: getRequiredEnv("GOOGLE_CLIENT_SECRET"),
+  GOOGLE_CLIENT_ID: getRequiredEnv("GOOGLE_CLIENT_ID"),
+  GOOGLE_REDIRECT_URL: getRequiredEnv("GOOGLE_REDIRECT_URL"),
+  CLOUDINARY_SECRET: getRequiredEnv("CLOUDINARY_SECRET"),
+  CLOUDINARY_API_KEY: getRequiredEnv("CLOUDINARY_APIKEY"),
+  CLOUDNAME: getRequiredEnv("CLOUDNAME"),
+  REDIS_URL: getOptionalEnv("REDIS_URL", ""),
 };
+
 export default getEnv;

@@ -62,7 +62,7 @@ export const registerUser = async (email: string, otp: string) => {
     throw new ApiError(401, "Request expired");
   }
   const newUserId = new mongoose.Types.ObjectId();
-  const accessToken = createAccessToken({ _id: newUserId.toString() });
+
   const refreshToken = createRefreshToken({ _id: newUserId.toString() });
   let input = {
     _id: newUserId,
@@ -71,7 +71,11 @@ export const registerUser = async (email: string, otp: string) => {
     password: payload.password,
     refreshToken: refreshToken,
   };
-  await saveUser(input);
+  let saved = await saveUser(input);
+  const accessToken = createAccessToken({
+    _id: newUserId.toString(),
+    role: saved.role,
+  });
   return { accessToken, refreshToken };
 };
 export const logInService = async ({ email, password }: loginObject) => {
@@ -83,7 +87,10 @@ export const logInService = async ({ email, password }: loginObject) => {
   if (!isPasswordValid) {
     throw new ApiError(404, "Invalid credential");
   }
-  const accessToken = createAccessToken({ _id: User._id.toString() });
+  const accessToken = createAccessToken({
+    _id: User._id.toString(),
+    role: User.role,
+  });
   const refreshToken = createRefreshToken({ _id: User._id.toString() });
   User.refreshToken = refreshToken;
   await User.save();
@@ -213,4 +220,11 @@ export const googleAuthCallBackService = async (
   let accessToken = createAccessToken({ _id: user._id });
   let refreshToken = createRefreshToken({ _id: user._id });
   setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
+};
+export const getMe = async (id: string) => {
+  const user = await User.findById(id).select("-password -refreshToken").lean();
+  if (!user) {
+    throw new ApiError(401, "User no longer exists");
+  }
+  return user;
 };

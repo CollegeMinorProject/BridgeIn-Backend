@@ -77,6 +77,7 @@ export const getFollowers = asyncHandler(async (req: any, res: any) => {
 
   // 1. Check Redis Memory First
   const cachedFollowers = await redisConfig.get(cacheKey);
+
   if (cachedFollowers) {
     // If it's in Redis, return it instantly! (Super fast)
     return res

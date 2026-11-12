@@ -6,7 +6,7 @@ export const sendMessageService = async (
   senderId: string,
   receiverId: string,
   text?: string,
-  image?: string
+  image?: string,
 ) => {
   let conversation = await Conversation.findOne({
     $or: [
@@ -44,7 +44,6 @@ export const sendMessageService = async (
     const io = getIO();
     io.to(receiverSocketId).emit("newMessage", formattedMessage);
   }
-
   return formattedMessage;
 };
 
@@ -52,7 +51,7 @@ export const sendMessageService = async (
 export const getMessagesService = async (
   myId: string,
   userToChatId: string,
-  limit: number
+  limit: number,
 ) => {
   const conversation = await Conversation.findOne({
     $or: [
@@ -67,20 +66,19 @@ export const getMessagesService = async (
 
   // Count total messages in this specific conversation
   //used promise.all to handle totalmessages and messages simultaneously
-const [totalMessages, messages] = await Promise.all([
+  const [totalMessages, messages] = await Promise.all([
     Message.countDocuments({ conversation_id: conversation._id }),
     Message.find({ conversation_id: conversation._id })
       .sort({ createdAt: -1 })
-      .limit(limit)
+      .limit(limit),
   ]);
 
-  const formattedMessages = messages
-    .map((msg: any) => ({
-      _id: msg._id,
-      senderId: msg.sender_id,
-      text: msg.text,
-      image: msg.attachmentUrl,
-      createdAt: msg.createdAt,
-    }))
+  const formattedMessages = messages.map((msg: any) => ({
+    _id: msg._id,
+    senderId: msg.sender_id,
+    text: msg.text,
+    image: msg.attachmentUrl,
+    createdAt: msg.createdAt,
+  }));
   return { messages: formattedMessages, totalMessages };
 };

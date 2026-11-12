@@ -13,6 +13,7 @@ import { ApiResponse } from "../../utils/ErrorHandling.ts/APIResponse";
 
 import {
   GenerateResetPasswordLinkService,
+  getMe,
   getNewAccessTokenService,
   googleAuthCallBackService,
   logInService,
@@ -184,3 +185,8 @@ export const verifyOTPHandler = asyncHandler(
       );
   },
 );
+export const Me = asyncHandler(async (req: Request, res: Response) => {
+  let id = (req as any).user;
+  let data = await getMe(id);
+  res.status(200).json(new ApiResponse(200, data, "Sucess"));
+});

@@ -10,6 +10,7 @@ import {
   ResetPassword,
   sendLogInWithOTPEmailHandler,
   verifyOTPHandler,
+  Me,
 } from "../controllers/Auth/auth.controller";
 import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
 const router = Router();
@@ -24,4 +25,5 @@ router.post("/google/callback", googleAuthCallBackHandler);
 router.post("/set-OTP", sendLogInWithOTPEmailHandler);
 router.post("/verifyOTP", verifyOTPHandler);
 router.post("/logout", logoutHandler);
+router.get("/me", isLoggedInMiddleWare, Me);
 export default router;

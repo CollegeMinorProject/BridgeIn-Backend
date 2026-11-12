@@ -1,5 +1,4 @@
-const mongoose = require("mongoose");
-const { Schema } = mongoose;
+import { Schema, model, InferSchemaType } from "mongoose";
 
 const jobApplicationSchema = new Schema(
   {
@@ -7,11 +6,10 @@ const jobApplicationSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "JobPost",
       required: true,
-      index: true,
     },
     candidate_id: {
       type: Schema.Types.ObjectId,
-      ref: "user",
+      ref: "User",
       required: true,
       index: true,
     },
@@ -20,6 +18,11 @@ const jobApplicationSchema = new Schema(
       ref: "Resume",
       required: true,
     },
+    screening_id: {
+      type: Schema.Types.ObjectId,
+      ref: "ResumeScreening",
+      default: null,
+    },
     status: {
       type: String,
       enum: {
@@ -27,16 +30,25 @@ const jobApplicationSchema = new Schema(
         message: "{VALUE} is not a valid application status",
       },
       default: "applied",
-      index: true,
     },
   },
   {
-    timestamps: { createdAt: "appliedAt", updatedAt: "updatedAt" },
+    timestamps: true,
   },
 );
+
+// one application per candidate per job (also serves job_post_id lookups)
 jobApplicationSchema.index(
   { job_post_id: 1, candidate_id: 1 },
   { unique: true },
 );
 
-module.exports = mongoose.model("JobApplication", jobApplicationSchema);
+// recruiter view: applications for a job filtered by status
+jobApplicationSchema.index({ job_post_id: 1, status: 1, createdAt: -1 });
+
+export type IJobApplication = InferSchemaType<typeof jobApplicationSchema>;
+
+export const JobApplication = model<IJobApplication>(
+  "JobApplication",
+  jobApplicationSchema,
+);
