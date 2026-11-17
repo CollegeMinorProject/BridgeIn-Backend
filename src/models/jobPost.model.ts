@@ -1,6 +1,15 @@
-import { Schema, model, InferSchemaType } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
-const JOB_TYPES = ["full-time", "part-time", "internship", "contract"] as const;
+export interface IJobPost extends Document {
+  employer_id: Types.ObjectId;
+  title: string;
+  description: string;
+  requirements: string[];
+  image: string; // <-- ADDED: Image field in interface
+  isOpen: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const jobPostSchema = new Schema(
   {
@@ -42,15 +51,14 @@ const jobPostSchema = new Schema(
       trim: true,
     },
     requirements: {
-      type: [{ type: String, trim: true }],
-      validate: {
-        validator: (v: string[]) => v.length > 0,
-        message: "At least one requirement is required",
-      },
+      type: [String],
+      required: [true, "Job requirements are required"],
+      trim: true,
     },
-    skills_required: {
-      type: [{ type: String, trim: true, lowercase: true }],
-      default: [],
+    image: {
+      // <-- ADDED: Image field in Schema (Mandatory)
+      type: String,
+      required: [true, "Job image is mandatory"],
     },
     isOpen: {
       type: Boolean,
@@ -62,18 +70,12 @@ const jobPostSchema = new Schema(
   },
 );
 
-// job feed: open jobs, newest first
-jobPostSchema.index({ isOpen: 1, createdAt: -1, _id: -1 });
+jobPostSchema.index({ isOpen: 1, createdAt: -1 });
+jobPostSchema.index({
+  title: "text",
+  description: "text",
+  requirements: "text",
+});
 
-// search by keyword, with title weighted highest
-jobPostSchema.index(
-  { title: "text", description: "text", requirements: "text" },
-  { weights: { title: 10, requirements: 3, description: 1 } },
-);
-
-// filter by skills (used for "jobs for you" matching)
-jobPostSchema.index({ skills_required: 1 });
-
-export type IJobPost = InferSchemaType<typeof jobPostSchema>;
-
-export const JobPost = model<IJobPost>("JobPost", jobPostSchema);
+export const JobPost = mongoose.model<IJobPost>("JobPost", jobPostSchema);
+export default JobPost;
