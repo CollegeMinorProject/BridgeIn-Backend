@@ -3,9 +3,13 @@ import { Server as HttpServer } from "http";
 
 let io: Server | null = null;
 
-// Store online users: { userId: socketId }
 const userSocketMap: Record<string, string> = {};
 const socketUserMap: Record<string, string> = {};
+
+// ADDED: per-room whiteboard cache, so a user who joins/refreshes
+// gets the current board instead of a blank one. Declared at module
+// scope (not inside the connection handler) so it persists across connections.
+const whiteboardState: Record<string, any[]> = {};
 
 export const getReceiverSocketId = (receiverId: string): string | undefined => {
   return userSocketMap[receiverId];
@@ -13,7 +17,6 @@ export const getReceiverSocketId = (receiverId: string): string | undefined => {
 
 const getAllowedOrigins = (): string[] => {
   const rawOrigins = process.env.CLIENT_URL || "http://localhost:5173";
-
   return rawOrigins
     .split(",")
     .map((origin) => origin.trim())
@@ -43,42 +46,67 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
       socketUserMap[socket.id] = userId;
     }
 
-    // Let everyone know who's online
     io!.emit("getOnlineUsers", Object.keys(userSocketMap));
 
     socket.on("join-room", (data) => {
       const { roomId } = data;
-      const Id = socketUserMap[socket.id];
-      console.log("User", Id, "joinRoom", roomId);
+      const id = socketUserMap[socket.id];
+      console.log("User", id, "joined room", roomId);
       socket.join(roomId);
       socket.emit("joined-room", { roomId });
-      socket.broadcast.to(roomId).emit("user-joined", { Id });
+      socket.broadcast.to(roomId).emit("user-joined", { id });
     });
 
     socket.on("join-videoCall", (data) => {
-      const { roomId, UserId } = data;
+      const { id, offer } = data;
+      const socketId = userSocketMap[id];
       const from = socketUserMap[socket.id];
-      console.log(`User ${from} joining video call in room ${roomId}`, data);
 
-      socket.join(roomId);
-      socket.broadcast.to(roomId).emit("user-joined-call", { from, UserId });
+      if (!socketId) {
+        console.log(`User ${id} is not online, cannot deliver offer`);
+        return;
+      }
+
+      console.log(`User ${from} sending offer to ${id}`);
+      socket.to(socketId).emit("incomming-call", { from, offer });
     });
 
-    socket.on("user-join", (data) => {
-      const { id, offer } = data;
-      const from = socketUserMap[socket.id];
-      const socketId = getReceiverSocketId(id);
-
-      if (socketId) {
-        io!.to(socketId).emit("incoming-call", { from, offer });
-      } else {
-        console.log(`User ${id} is not online, cannot deliver call offer`);
+    socket.on("call-accepted", (data) => {
+      const { Id, ans } = data;
+      const socketId = userSocketMap[Id];
+      if (!socketId) {
+        console.log(`User ${Id} is not online, cannot deliver answer`);
+        return;
       }
+      socket.to(socketId).emit("call-accepted", { ans });
+    });
+
+    socket.on("ice-candidate", (data) => {
+      const { id, candidate } = data;
+      const socketId = userSocketMap[id];
+      if (!socketId) return;
+      socket.to(socketId).emit("ice-candidate", { candidate });
+    });
+
+    // ADDED: relay whiteboard changes to everyone else in the room,
+    // and cache the latest full state for late joiners
+    socket.on("whiteboard-update", (data) => {
+      const { roomId, elements } = data;
+      if (!roomId) return;
+      whiteboardState[roomId] = elements;
+      socket.to(roomId).emit("whiteboard-update", { elements });
+    });
+
+    // ADDED: send back whatever's cached for this room (empty array if nothing yet)
+    socket.on("whiteboard-request-sync", (data) => {
+      const { roomId } = data;
+      if (!roomId) return;
+      const elements = whiteboardState[roomId] ?? [];
+      socket.emit("whiteboard-sync", { elements });
     });
 
     socket.on("disconnect", () => {
       console.log(`[Socket] User ${userId} disconnected`, socket.id);
-
       if (userId) {
         delete socketUserMap[socket.id];
         delete userSocketMap[userId];
