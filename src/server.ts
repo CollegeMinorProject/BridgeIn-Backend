@@ -10,6 +10,8 @@ import cors from "cors"; //CORS = Cross-Origin Resource Sharing.
 /*This creates an Express application.
 Think of app as the main brain of your backend.
 All routes, middlewares, and settings will be attached to this app object.*/ 
+import applicationRouter from './routes/application.routes';
+
 const app = express();
 //CORS middleware
 /*Your frontend (React/Vite) runs on http://localhost:5173
@@ -44,4 +46,5 @@ app.use(authRouter);  //no prefix
 app.use("/post", postRouter); //all routes starts with /post
 app.use("/user", userRouter); //all routes starts with /user
 app.use("/message", messageRouter); //all routes starts with /message
+app.use('/api/applications', applicationRouter);
 export default app; //We export the fully configured Express app so that index.ts can use it.

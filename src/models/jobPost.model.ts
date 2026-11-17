@@ -5,6 +5,7 @@ export interface IJobPost extends Document {
   title: string;
   description: string;
   requirements: string[];
+  image: string; // <-- ADDED: Image field in interface
   isOpen: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +35,10 @@ const jobPostSchema = new Schema<IJobPost>(
       required: [true, "Job requirements are required"],
       trim: true,
     },
+    image: { // <-- ADDED: Image field in Schema (Mandatory)
+      type: String,
+      required: [true, "Job image is mandatory"], 
+    },
     isOpen: {
       type: Boolean,
       default: true,
@@ -44,6 +49,7 @@ const jobPostSchema = new Schema<IJobPost>(
     timestamps: true,
   },
 );
+
 jobPostSchema.index({ isOpen: 1, createdAt: -1 });
 jobPostSchema.index({
   title: "text",

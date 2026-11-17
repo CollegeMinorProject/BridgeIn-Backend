@@ -1,19 +1,31 @@
+import { z } from "zod";
 import { Follower } from '../../models/follow.model';
 import { asyncHandler } from '../../utils/ErrorHandling.ts/asyncHandler';
 import { ApiError } from '../../utils/ErrorHandling.ts/APIError';
 import { ApiResponse } from '../../utils/ErrorHandling.ts/APIResponse';
-// 1. Import your Redis configuration (Adjust the path if your config folder is elsewhere)
+// 1. Import your Redis configuration
 import redisConfig from '../../config/redis.config'; 
+
+// FIX 1: Changed `required_error` to `message` based on your Zod version
+const followerBodySchema = z.object({
+  targetUserId: z.string({ message: "targetUserId is required" }).min(1, "targetUserId cannot be empty")
+});
 
 export const followUser = asyncHandler(async (req: any, res: any) => {
   // 1. Grab the ID string directly from req.user based on your middleware
   const followerId = req.user;
-  const { targetUserId } = req.params;
 
-  // 2. Safety Check: If no user ID is found, stop safely instead of crashing
+  // 2. Safety Check: If no user ID is found
   if (!followerId) {
     throw new ApiError(401, "Unauthorized: User token is missing or invalid");
   }
+
+  // FIX 2: Changed validation.error.errors to validation.error.issues
+  const validation = followerBodySchema.safeParse(req.body);
+  if (!validation.success) {
+    throw new ApiError(400, validation.error.issues[0].message);
+  }
+  const { targetUserId } = validation.data;
 
   if (followerId.toString() === targetUserId) {
     throw new ApiError(400, "You cannot follow yourself");
@@ -36,11 +48,17 @@ export const followUser = asyncHandler(async (req: any, res: any) => {
 export const unfollowUser = asyncHandler(async (req: any, res: any) => {
   // 1. Grab the ID string directly from req.user based on your middleware
   const followerId = req.user;
-  const { targetUserId } = req.params;
 
   if (!followerId) {
     throw new ApiError(401, "Unauthorized: User token is missing or invalid");
   }
+
+  // FIX 3: Changed validation.error.errors to validation.error.issues
+  const validation = followerBodySchema.safeParse(req.body);
+  if (!validation.success) {
+    throw new ApiError(400, validation.error.issues[0].message);
+  }
+  const { targetUserId } = validation.data;
 
   await Follower.findOneAndDelete({ follower: followerId, channel: targetUserId });
   
