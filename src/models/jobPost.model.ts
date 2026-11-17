@@ -11,7 +11,7 @@ export interface IJobPost extends Document {
   updatedAt: Date;
 }
 
-const jobPostSchema = new Schema<IJobPost>(
+const jobPostSchema = new Schema(
   {
     employer_id: {
       type: Schema.Types.ObjectId,
@@ -25,6 +25,26 @@ const jobPostSchema = new Schema<IJobPost>(
       trim: true,
       maxlength: [150, "Job title cannot exceed 150 characters"],
     },
+    company_name: {
+      type: String,
+      required: [true, "Company name is required"],
+      trim: true,
+      maxlength: [100, "Company name cannot exceed 100 characters"],
+    },
+    location: {
+      type: String,
+      required: [true, "Location is required"],
+      trim: true,
+      maxlength: [100, "Location cannot exceed 100 characters"],
+    },
+    job_type: {
+      type: String,
+      enum: {
+        values: JOB_TYPES,
+        message: "{VALUE} is not a valid job type",
+      },
+      required: [true, "Job type is required"],
+    },
     description: {
       type: String,
       required: [true, "Job description is required"],
@@ -35,14 +55,14 @@ const jobPostSchema = new Schema<IJobPost>(
       required: [true, "Job requirements are required"],
       trim: true,
     },
-    image: { // <-- ADDED: Image field in Schema (Mandatory)
+    image: {
+      // <-- ADDED: Image field in Schema (Mandatory)
       type: String,
-      required: [true, "Job image is mandatory"], 
+      required: [true, "Job image is mandatory"],
     },
     isOpen: {
       type: Boolean,
       default: true,
-      index: true,
     },
   },
   {

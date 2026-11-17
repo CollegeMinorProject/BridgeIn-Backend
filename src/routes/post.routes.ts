@@ -5,8 +5,17 @@ import { upload } from "../middleware/multer.middleware";
 
 
 // Your new controller imports
-import { createJob, getJobs, updateJobStatus, deleteJob } from "../controllers/Post/job.controller";
-import { addComment, getCommentsByPost, updateComment, deleteComment } from "../controllers/Post/comment.controller";
+import {
+  createJob,
+  getJobs,
+  updateJobStatus,
+  deleteJob,
+} from "../controllers/Post/job.controller";
+import {
+  addComment,
+  getCommentsByPost,
+  deleteComment,
+} from "../controllers/Post/comment.controller";
 
 const router = Router();
 
@@ -26,7 +35,6 @@ router.get("/:postId/likes", getLikeDetails);
 // Your new Comment routes
 router.post("/:postId/comments", addComment);
 router.get("/:postId/comments", getCommentsByPost);
-router.patch("/comments/:commentId", updateComment);
 router.delete("/comments/:commentId", deleteComment);
 
 // Your new Job routes

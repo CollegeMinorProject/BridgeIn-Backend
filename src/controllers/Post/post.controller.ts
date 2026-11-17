@@ -59,11 +59,10 @@ export const likePost = asyncHandler(async (req: Request, res: Response) => {
     LikedBy: userId,
   });
 
-  return res.status(201).json(
-    new ApiResponse(201, null, "Post liked successfully"),
-  );
+  return res
+    .status(201)
+    .json(new ApiResponse(201, null, "Post liked successfully"));
 });
-
 
 // Unlike a post
 export const unlikePost = asyncHandler(async (req: Request, res: Response) => {
@@ -76,7 +75,7 @@ export const unlikePost = asyncHandler(async (req: Request, res: Response) => {
   const post = await Post.findById(postId);
 
   if (!post) {
-     throw new ApiError(404, "Post not found");
+    throw new ApiError(404, "Post not found");
   }
   const deletedLike = await like.findOneAndDelete({
     postid: postId,
@@ -87,11 +86,10 @@ export const unlikePost = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, "Like not found");
   }
 
-  return res.status(200).json(
-    new ApiResponse(200, null, "Post unliked successfully"),
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Post unliked successfully"));
 });
-
 
 // Get like details
 export const getLikeDetails = asyncHandler(
