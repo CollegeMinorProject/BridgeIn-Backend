@@ -16,7 +16,7 @@ import resumeRoutes from "./routes/resume.routes";
 const app = express();
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   }),
@@ -40,7 +40,7 @@ app.use("/post", postRouter); //all routes starts with /post
 app.use("/user", userRouter); //all routes starts with /user
 app.use("/message", messageRouter); //all routes starts with /message
 app.use("/api/applications", applicationRouter);
-export default app; //We export the fully configured Express app so that index.ts can use it.
-
 // Add this with your other app.use(...) lines:
 app.use("/api/v1/resume", resumeRoutes);
+export default app; //We export the fully configured Express app so that index.ts can use it.
+
