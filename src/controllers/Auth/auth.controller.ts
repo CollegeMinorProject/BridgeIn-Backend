@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import {
   loginSchema,
+  LogInWithOtpSchema,
+  OnlyEmailSchema,
   RegisterEmailOTPVerificationSchema,
   registerSchema,
   zodHandleOTPSchema,
@@ -109,15 +111,15 @@ export const logoutHandler = asyncHandler(
   },
 );
 //working
-export const GenerateResetPasswordlink = asyncHandler(
+export const GenerateResetPasswordlinkHandler = asyncHandler(
   async (req: Request, res: Response) => {
-    const zvarification = loginSchema.safeParse(req.body);
+    const zvarification = OnlyEmailSchema.safeParse(req.body);
     if (!zvarification.success) {
       throw new ApiError(400, "Invalid credential");
     }
-    const { email, password } = zvarification.data;
+    const { email } = zvarification.data;
     const normalizedEmail = email.toLowerCase().trim();
-    await GenerateResetPasswordLinkService(normalizedEmail, password);
+    await GenerateResetPasswordLinkService(normalizedEmail);
     return res
       .status(201)
       .json(new ApiResponse(201, {}, "Reset Password Link send"));
@@ -125,11 +127,12 @@ export const GenerateResetPasswordlink = asyncHandler(
 );
 //working
 export const ResetPassword = async (req: Request, res: Response) => {
-  const token = req.query.token as string | undefined;
-  if (!token) {
-    throw new ApiError(401, "Invalid Request");
+  const zvarification = LogInWithOtpSchema.safeParse(req.body);
+  if (!zvarification.success) {
+    throw new ApiError(400, "Invalid credential");
   }
-  await ResetPasswordService(token);
+  const { email, password, otp } = zvarification.data;
+  await ResetPasswordService(email, password, otp);
   return res.status(201).json(new ApiResponse(201, "Password Reset"));
 };
 //working

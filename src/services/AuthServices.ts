@@ -21,6 +21,9 @@ import getGoogleClient from "../utils/getGoogleClient";
 import { OTPMAIL, RESETURLMAIL } from "../utils/MailHTMLConstants";
 import mongoose from "mongoose";
 import { emailEnqueue } from "../queues/producer/producer";
+import conversationModel from "../models/conversation.model";
+import { Notification } from "../models/notification.model";
+import messageModel from "../models/message.model";
 type registerObject = {
   email: string;
   name: string;
@@ -121,25 +124,14 @@ export const getNewAccessTokenService = async (token: string) => {
 };
 export const GenerateResetPasswordLinkService = async (
   email: string,
-  password: string,
 ): Promise<void> => {
   const User: IUser | null = await isEmailPresent(email);
   if (User == null) {
     throw new ApiError(404, "Invalid Request");
   }
-  const verifyToken = jwt.sign(
-    {
-      id: User?._id,
-      email: email,
-      password,
-    },
-    getEnv.JWT_ACCESS_SECRET,
-    {
-      expiresIn: "1d",
-    },
-  );
-  const resetUrl = `${getEnv.APP_URL}/resetPassword?token=${verifyToken}`;
-  const html = RESETURLMAIL(resetUrl);
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  await redisConfig.set(RedisEmailOTPKey(email), otp, "EX", 5 * 60);
+  const html = OTPMAIL(otp, 5);
   await emailEnqueue(email, "Verify your email", html);
 };
 export const setLogInOTP = async (email: string) => {
@@ -164,22 +156,20 @@ export const validateLogInOTP = async (email: string, otp: string) => {
   await User.save();
   return { accessToken, refreshToken };
 };
-export const ResetPasswordService = async (token: string): Promise<void> => {
-  let payload;
-  try {
-    payload = jwt.verify(token, getEnv.JWT_ACCESS_SECRET) as {
-      id: string;
-      email: string;
-      password: string;
-    };
-  } catch (error) {
-    throw new ApiError(401, "Invalid Request");
+export const ResetPasswordService = async (
+  email: string,
+  password: string,
+  otp: string,
+): Promise<void> => {
+  const saveotp = await redisConfig.get(RedisEmailOTPKey(email));
+  if (!saveotp || saveotp != otp) {
+    throw new ApiError(400, "INVALID Request");
   }
-  const user = await User.findById(payload.id);
+  const user = await isEmailPresent(email);
   if (!user) {
-    throw new ApiError(400, "Request Expired");
+    throw new ApiError(400, "INVALID Request");
   }
-  user.password = payload.password;
+  user.password = password;
   await user.save();
 };
 export const googleAuthCallBackService = async (
@@ -226,5 +216,36 @@ export const getMe = async (id: string) => {
   if (!user) {
     throw new ApiError(401, "User no longer exists");
   }
-  return user;
+  const userId = user._id;
+
+  const [
+    unreadNotificationsCount,
+    unreadJobNotificationsCount,
+    conversationIds,
+  ] = await Promise.all([
+    Notification.countDocuments({ recipient_id: userId, isRead: false }),
+    Notification.countDocuments({
+      recipient_id: userId,
+      isRead: false,
+      type: "job_status",
+    }),
+    conversationModel
+      .find({
+        $or: [{ participant1_id: userId }, { participant2_id: userId }],
+      })
+      .distinct("_id"),
+  ]);
+
+  const unreadMessagesCount = await messageModel.countDocuments({
+    conversation_id: { $in: conversationIds },
+    sender_id: { $ne: userId },
+    isRead: false,
+  });
+
+  return {
+    ...user,
+    unreadNotificationsCount,
+    unreadJobNotificationsCount,
+    unreadMessagesCount,
+  };
 };

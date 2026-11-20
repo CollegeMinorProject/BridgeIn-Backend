@@ -1,11 +1,17 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
+export const JOB_TYPES = ["full-time", "internship"] as const;
+export type JobType = (typeof JOB_TYPES)[number];
+
 export interface IJobPost extends Document {
   employer_id: Types.ObjectId;
   title: string;
+  company_name: string;
+  location: string;
+  job_type: JobType;
   description: string;
   requirements: string[];
-  image: string; // <-- ADDED: Image field in interface
+  image: string;
   isOpen: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -51,12 +57,10 @@ const jobPostSchema = new Schema(
       trim: true,
     },
     requirements: {
-      type: [String],
+      type: [{ type: String, trim: true }],
       required: [true, "Job requirements are required"],
-      trim: true,
     },
     image: {
-      // <-- ADDED: Image field in Schema (Mandatory)
       type: String,
       required: [true, "Job image is mandatory"],
     },
