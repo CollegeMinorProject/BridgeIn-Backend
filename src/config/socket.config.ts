@@ -1,55 +1,33 @@
 import { Server } from "socket.io";
 import { Server as HttpServer } from "http";
-import jwt from "jsonwebtoken";
 
 let io: Server | null = null;
 
-// 1. Store online users: { userId: socketId }
 const userSocketMap: Record<string, string> = {};
+const socketUserMap: Record<string, string> = {};
 
-// Helper function to find a specific user's socket connection
+// ADDED: per-room whiteboard cache, so a user who joins/refreshes
+// gets the current board instead of a blank one. Declared at module
+// scope (not inside the connection handler) so it persists across connections.
+const whiteboardState: Record<string, any[]> = {};
+
 export const getReceiverSocketId = (receiverId: string): string | undefined => {
   return userSocketMap[receiverId];
 };
 
 const getAllowedOrigins = (): string[] => {
   const rawOrigins = process.env.CLIENT_URL || "http://localhost:5173";
-
   return rawOrigins
     .split(",")
     .map((origin) => origin.trim())
     .filter((origin): origin is string => origin.length > 0);
 };
 
-const getJwtFromCookieHeader = (cookieHeader: string): string | null => {
-  for (const cookie of cookieHeader.split(";")) {
-    const [name, ...valueParts] = cookie.trim().split("=");
-    if (name.toLowerCase() === "jwt" && valueParts.length > 0) {
-      return decodeURIComponent(valueParts.join("="));
-    }
-  }
-
-  return null;
-};
-
-const getUserIdFromToken = (decoded: unknown): string | null => {
-  if (!decoded || typeof decoded !== "object") {
-    return null;
-  }
-
-  const userId = "userId" in decoded ? (decoded as Record<string, unknown>).userId : undefined;
-
-  return typeof userId === "string" && userId.trim().length > 0 ? userId : null;
-};
-
 export const initializeSocket = (httpServer: HttpServer): Server => {
   if (io) {
-    throw new Error("Socket.io is already initialized. Do not call initializeSocket multiple times.");
-  }
-
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    throw new Error("JWT_SECRET is not configured. Socket authentication cannot start.");
+    throw new Error(
+      "Socket.io is already initialized. Do not call initializeSocket multiple times.",
+    );
   }
 
   io = new Server(httpServer, {
@@ -59,54 +37,78 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
     },
   });
 
-  io.use((socket, next) => {
-    try {
-      const cookieHeader = socket.handshake.headers.cookie;
-      if (!cookieHeader) {
-        return next(new Error("Authentication Error: No cookies found"));
-      }
-
-      const token = getJwtFromCookieHeader(cookieHeader);
-      if (!token) {
-        return next(new Error("Authentication Error: No token provided in HttpOnly cookie"));
-      }
-
-      const decoded = jwt.verify(token, jwtSecret);
-      const userId = getUserIdFromToken(decoded);
-
-      if (!userId) {
-        return next(new Error("Authentication Error: Malformed token payload missing user identifier"));
-      }
-
-      socket.data.userId = userId;
-      return next();
-    } catch {
-      return next(new Error("Authentication Error: Invalid or expired token"));
-    }
-  });
-
   io.on("connection", (socket) => {
-    const userId = socket.data.userId as string;
+    const userId = socket.handshake.query.userId as string;
+    console.log(`[Socket] User ${userId} connected`, socket.id);
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[Socket] User ${userId} connected`);
-    }
-
-    // 2. Add user to the map when they connect
     if (userId) {
       userSocketMap[userId] = socket.id;
+      socketUserMap[socket.id] = userId;
     }
 
-    // 3. Broadcast the updated list of online users to ALL connected clients
     io!.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-    socket.on("disconnect", () => {
-      if (process.env.NODE_ENV === "development") {
-        console.log(`[Socket] User ${userId} disconnected`);
+    socket.on("join-room", (data) => {
+      const { roomId } = data;
+      const id = socketUserMap[socket.id];
+      console.log("User", id, "joined room", roomId);
+      socket.join(roomId);
+      socket.emit("joined-room", { roomId });
+      socket.broadcast.to(roomId).emit("user-joined", { id });
+    });
+
+    socket.on("join-videoCall", (data) => {
+      const { id, offer } = data;
+      const socketId = userSocketMap[id];
+      const from = socketUserMap[socket.id];
+
+      if (!socketId) {
+        console.log(`User ${id} is not online, cannot deliver offer`);
+        return;
       }
 
-      // 4. Remove user from map on disconnect and broadcast update
+      console.log(`User ${from} sending offer to ${id}`);
+      socket.to(socketId).emit("incomming-call", { from, offer });
+    });
+
+    socket.on("call-accepted", (data) => {
+      const { Id, ans } = data;
+      const socketId = userSocketMap[Id];
+      if (!socketId) {
+        console.log(`User ${Id} is not online, cannot deliver answer`);
+        return;
+      }
+      socket.to(socketId).emit("call-accepted", { ans });
+    });
+
+    socket.on("ice-candidate", (data) => {
+      const { id, candidate } = data;
+      const socketId = userSocketMap[id];
+      if (!socketId) return;
+      socket.to(socketId).emit("ice-candidate", { candidate });
+    });
+
+    // ADDED: relay whiteboard changes to everyone else in the room,
+    // and cache the latest full state for late joiners
+    socket.on("whiteboard-update", (data) => {
+      const { roomId, elements } = data;
+      if (!roomId) return;
+      whiteboardState[roomId] = elements;
+      socket.to(roomId).emit("whiteboard-update", { elements });
+    });
+
+    // ADDED: send back whatever's cached for this room (empty array if nothing yet)
+    socket.on("whiteboard-request-sync", (data) => {
+      const { roomId } = data;
+      if (!roomId) return;
+      const elements = whiteboardState[roomId] ?? [];
+      socket.emit("whiteboard-sync", { elements });
+    });
+
+    socket.on("disconnect", () => {
+      console.log(`[Socket] User ${userId} disconnected`, socket.id);
       if (userId) {
+        delete socketUserMap[socket.id];
         delete userSocketMap[userId];
         io!.emit("getOnlineUsers", Object.keys(userSocketMap));
       }
@@ -118,8 +120,9 @@ export const initializeSocket = (httpServer: HttpServer): Server => {
 
 export const getIO = (): Server => {
   if (!io) {
-    throw new Error("Socket.io has not been initialized. Call initializeSocket first.");
+    throw new Error(
+      "Socket.io has not been initialized. Call initializeSocket first.",
+    );
   }
-
   return io;
 };
