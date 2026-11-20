@@ -14,10 +14,12 @@ services:
 
   server:
     build:
-      context: .  # Changed from ./Server to . (current directory)
+      context: .
       dockerfile: Dockerfile
+    env_file:
+      - .env
     volumes:
-      - .:/app    # Changed from ./Server:/app to .:/app
+      - .:/app
       - /app/node_modules
     depends_on:
       redis:
@@ -42,6 +44,7 @@ services:
       CLOUDINARY_SECRET: ${CLOUDINARY_SECRET}
       CLOUDINARY_APIKEY: ${CLOUDINARY_APIKEY}
       mailtrap: ${mailtrap}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     ports:
       - "${PORT:-5000}:${PORT:-5000}"
 
