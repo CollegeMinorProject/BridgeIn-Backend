@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
-import { createPost,likePost,unlikePost,getLikeDetails,} from "../controllers/Post/post.controller";
+import { createPost,likePost,unlikePost,getLikeDetails, deletePost, updatePost} from "../controllers/Post/post.controller";
 import { upload } from "../middleware/multer.middleware";
 
 
@@ -24,6 +24,10 @@ router.use(isLoggedInMiddleWare);
 
 // Friend's existing post route
 router.post("/create", upload.single("photo"), createPost);
+
+// Delete and Update Post routes
+router.delete("/:postId", deletePost);
+router.patch("/:postId", upload.single("photo"), updatePost);
 
 // Like and Unlike routes
 router.post("/:postId/like", likePost);

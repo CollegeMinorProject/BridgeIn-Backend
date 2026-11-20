@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import { ApiResponse } from "../../utils/ErrorHandling.ts/APIResponse";
 import { asyncHandler } from "../../utils/ErrorHandling.ts/asyncHandler";
-import { createPostSchema } from "./post.schema";
+import { createPostSchema, updatePostSchema } from "./post.schema";
 import { ApiError } from "../../utils/ErrorHandling.ts/APIError";
-import { createPostService } from "../../services/Post.Services";
+import { createPostService, 
+         deletedPostService, 
+         updatePostService
+} from "../../services/Post.Services";
 import like from "../../models/like.model";
 import { Post } from "../../models/post.model";
 import { User } from "../../models/user.model";
@@ -121,7 +124,50 @@ export const getLikeDetails = asyncHandler(
     );
   },
 );
+
 //delete post
+export const deletePost = asyncHandler(async (req: Request, res: Response) => {
+  const postId = req.params.postId as string;
+  const userId = req.user as string;
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  await deletedPostService(postId, userId);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Post deleted successfully"));
+});
+
+//update post
+export const updatePost = asyncHandler(async (req: Request, res: Response) => {
+  const postId = req.params.postId as string;
+  const userId = req.user as string;
+  const file = req.file?.path; 
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  const parsedData = updatePostSchema.safeParse(req.body);
+  if (!parsedData.success) {
+    throw new ApiError(400, "Invalid data");
+  }
+
+  const updatedPost = await updatePostService(
+    postId, 
+    userId, 
+    parsedData.data.text,
+    file
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedPost, "Post updated successfully"));
+});
+//delete post (deletes related likes, comments)
 //update post
 //comment on post
 //get comment in bunch
