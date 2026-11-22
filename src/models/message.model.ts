@@ -40,27 +40,14 @@ const messageSchema = new Schema(
 );
 
 messageSchema.index({ conversation_id: 1, createdAt: -1 });
-interface MessageDocument {
-  conversation_id: mongoose.Types.ObjectId;
-  text?: string;
-  createdAt: Date;
-}
+messageSchema.index({ conversation_id: 1, _id: -1 });
 
-type PostSaveNext = (error?: Error) => void;
-
-messageSchema.post("save", async function (doc: MessageDocument, next: PostSaveNext) {
-  try {
-    const Conversation = mongoose.model("Conversation");
-    const previewText = doc.text ? doc.text : "📎 Attachment";
-
-    await Conversation.findByIdAndUpdate(doc.conversation_id, {
-      last_message_text: previewText.slice(0, 500),
-      last_message_at: doc.createdAt,
-    });
-    next();
-  } catch (error) {
-    next(error instanceof Error ? error : new Error(String(error)));
-  }
+messageSchema.post("save", async function (doc) {
+  const preview = doc.text || "📎 Attachment";
+  await mongoose.model("Conversation").updateOne(
+    { _id: doc.conversation_id, last_message_at: { $lte: doc.createdAt } },
+    { $set: { last_message_text: preview.slice(0, 500), last_message_at: doc.createdAt } },
+  );
 });
 
 export default mongoose.model("Message", messageSchema);

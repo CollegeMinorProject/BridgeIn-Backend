@@ -239,16 +239,16 @@ export const getMe = async (id: string) => {
       .distinct("_id"),
   ]);
 
-  const unreadMessagesCount = await messageModel.countDocuments({
+  const unreadConversations = await messageModel.find({
     conversation_id: { $in: conversationIds },
     sender_id: { $ne: userId },
     isRead: false,
-  });
+  }).distinct("conversation_id");
 
   return {
     ...user,
     unreadNotificationsCount,
     unreadJobNotificationsCount,
-    unreadMessagesCount,
+    unreadMessagesCount: unreadConversations.length,
   };
 };

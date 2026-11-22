@@ -15,7 +15,8 @@ export const sendMessage = asyncHandler(
     }
 
     const { receiverId, text, image } = parsedData.data;
-    const senderId = (req as any).user;
+    const senderId = req.user;
+    if (!senderId) throw new ApiError(401, "Not authorised");
     // 2. Pass validated data to the Service Layer
     const message = await sendMessageService(senderId, receiverId, text, image);
 
@@ -29,7 +30,7 @@ export const sendMessage = asyncHandler(
 export const getMessages = asyncHandler(
   async (req: Request, res: Response) => {
     const userToChatId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const myId = (req as any).user?._id;
+    const myId = req.user;
 
     if (!userToChatId || !myId) {
       throw new ApiError(400, "Missing user IDs");

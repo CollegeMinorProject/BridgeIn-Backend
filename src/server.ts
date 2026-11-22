@@ -4,6 +4,7 @@ import authRouter from "./routes/auth.routes";
 import postRouter from "./routes/post.routes";
 import userRouter from "./routes/user.routes";
 import messageRouter from "./routes/message.routes";
+import notificationRouter from "./routes/notification.routes";
 import cors from "cors"; //CORS = Cross-Origin Resource Sharing.
 /*This creates an Express application.
 Think of app as the main brain of your backend.
@@ -25,5 +26,6 @@ app.use("/auth", authRouter); //no prefix
 app.use("/post", postRouter); //all routes starts with /post
 app.use("/user", userRouter); //all routes starts with /user
 app.use("/message", messageRouter); //all routes starts with /message
+app.use("/notifications", notificationRouter);
 app.use("/api/applications", applicationRouter);
 export default app; //We export the fully configured Express app so that index.ts can use it.

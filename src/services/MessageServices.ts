@@ -1,6 +1,8 @@
 import Message from "../models/message.model";
 import Conversation from "../models/conversation.model";
-import { getIO, getReceiverSocketId } from "../config/socket.config";
+import { getIO } from "../config/socket.config";
+import { publishMessage } from "../config/chatSocket";
+import { saveChatMessage } from "./ChatServices";
 
 export const sendMessageService = async (
   senderId: string,
@@ -8,43 +10,8 @@ export const sendMessageService = async (
   text?: string,
   image?: string,
 ) => {
-  let conversation = await Conversation.findOne({
-    $or: [
-      { participant1_id: senderId, participant2_id: receiverId },
-      { participant1_id: receiverId, participant2_id: senderId },
-    ],
-  });
-
-  if (!conversation) {
-    conversation = await Conversation.create({
-      participant1_id: senderId,
-      participant2_id: receiverId,
-    });
-  }
-
-  const newMessage = new Message({
-    conversation_id: conversation._id,
-    sender_id: senderId,
-    text: text || "",
-    attachmentUrl: image || null,
-  });
-
-  await newMessage.save();
-
-  const formattedMessage = {
-    _id: newMessage._id,
-    senderId: newMessage.sender_id,
-    text: newMessage.text,
-    image: newMessage.attachmentUrl,
-    createdAt: newMessage.createdAt,
-  };
-
-  const receiverSocketId = getReceiverSocketId(receiverId);
-  if (receiverSocketId) {
-    const io = getIO();
-    io.to(receiverSocketId).emit("newMessage", formattedMessage);
-  }
-  return formattedMessage;
+  const result = await saveChatMessage(senderId, { receiverId, text, image });
+  return publishMessage(getIO(), senderId, result).message;
 };
 
 // New Service to handle fetching paginated messages
