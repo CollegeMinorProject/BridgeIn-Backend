@@ -16,7 +16,13 @@ export interface IJobPost extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
-
+export const JOB_TYPES = [
+  "Full-time",
+  "Part-time",
+  "Contract",
+  "Internship",
+  "Remote",
+] as const;
 const jobPostSchema = new Schema(
   {
     employer_id: {
