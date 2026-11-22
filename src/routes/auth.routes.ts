@@ -26,6 +26,5 @@ router.post("/resetPassword", ResetPassword);
 router.post("/generateLogInOTP", sendLogInWithOTPEmailHandler);
 router.post("/LogInWithOTP", verifyOTPHandler);
 router.post("/google/callback", googleAuthCallBackHandler);
-router.get("/logout", logoutHandler);
 router.get("/me", isLoggedInMiddleWare, Me);
 export default router;

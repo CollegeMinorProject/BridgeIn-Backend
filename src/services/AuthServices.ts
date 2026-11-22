@@ -175,7 +175,7 @@ export const ResetPasswordService = async (
 export const googleAuthCallBackService = async (
   res: Response,
   code: string,
-): Promise<void> => {
+): Promise<string> => {
   const client = getGoogleClient();
   const { tokens } = await client.getToken(code);
 
@@ -207,9 +207,12 @@ export const googleAuthCallBackService = async (
     };
     user = await saveUser(input);
   }
-  let accessToken = createAccessToken({ _id: user._id });
-  let refreshToken = createRefreshToken({ _id: user._id });
+  const accessToken = createAccessToken({ _id: user.id, role: user.role });
+  const refreshToken = createRefreshToken({ _id: user.id });
+  user.refreshToken = refreshToken;
+  await user.save();
   setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
+  return accessToken;
 };
 export const getMe = async (id: string) => {
   const user = await User.findById(id).select("-password -refreshToken").lean();

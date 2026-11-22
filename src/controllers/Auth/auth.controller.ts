@@ -52,7 +52,7 @@ export const verifyEmailHandler = asyncHandler(
       throw new ApiError(403, "Invalid Request");
     }
     let { refreshToken, accessToken } = await registerUser(
-      result.data.email,
+      result.data.email.trim().toLowerCase(),
       result.data.otp,
     );
     setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
@@ -126,15 +126,15 @@ export const GenerateResetPasswordlinkHandler = asyncHandler(
   },
 );
 //working
-export const ResetPassword = async (req: Request, res: Response) => {
+export const ResetPassword = asyncHandler(async (req: Request, res: Response) => {
   const zvarification = LogInWithOtpSchema.safeParse(req.body);
   if (!zvarification.success) {
     throw new ApiError(400, "Invalid credential");
   }
   const { email, password, otp } = zvarification.data;
-  await ResetPasswordService(email, password, otp);
+  await ResetPasswordService(email.trim().toLowerCase(), password, otp);
   return res.status(201).json(new ApiResponse(201, "Password Reset"));
-};
+});
 //working
 export const googleAuthStartHandler = asyncHandler(
   async (_req: Request, res: Response) => {
@@ -155,8 +155,8 @@ export const googleAuthCallBackHandler = asyncHandler(
     if (!code) {
       throw new ApiError(400, "Missing code in callback");
     }
-    await googleAuthCallBackService(res, code);
-    res.status(200).json(new ApiResponse(200, "Logged In"));
+    const accessToken = await googleAuthCallBackService(res, code);
+    res.status(200).json(new ApiResponse(200, { accessToken }, "Logged In"));
   },
 );
 export const sendLogInWithOTPEmailHandler = asyncHandler(
@@ -166,7 +166,7 @@ export const sendLogInWithOTPEmailHandler = asyncHandler(
     if (!verification.success) {
       throw new ApiError(400, "Bad Request");
     }
-    await setLogInOTP(email);
+    await setLogInOTP(verification.data.trim().toLowerCase());
     res.status(200).json(new ApiResponse(200, "OTP send to your email"));
   },
 );
@@ -177,7 +177,7 @@ export const verifyOTPHandler = asyncHandler(
       throw new ApiError(400, "Bad Request");
     }
     let { refreshToken, accessToken } = await validateLogInOTP(
-      verification.data.email,
+      verification.data.email.trim().toLowerCase(),
       verification.data.otp,
     );
     setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
