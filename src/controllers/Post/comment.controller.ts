@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { asyncHandler } from "../../utils/ErrorHandling.ts/asyncHandler";
 import { ApiError } from "../../utils/ErrorHandling.ts/APIError";
 import { ApiResponse } from "../../utils/ErrorHandling.ts/APIResponse";
@@ -9,31 +10,29 @@ import {
   deleteCommentService,
 } from "../../services/comment.service";
 
-export const addComment = asyncHandler(async (req: any, res: any) => {
-  const { postId } = req.params;
-  const { text } = req.body;
-  const commenterId = req.user;
-  if (!commenterId) {
-    throw new ApiError(401, "Unauthorized: User token is missing");
+function validPostId(postId: unknown) {
+  if (typeof postId !== "string" || !Types.ObjectId.isValid(postId)) {
+    throw new ApiError(400, "Invalid post ID");
   }
+  return postId;
+}
 
-  // logic -> service point
-  const comment = await createCommentService(text, postId, commenterId);
-  return res.status(201).json(new ApiResponse(201, comment, "Comment added"));
+export const addComment = asyncHandler(async (req, res) => {
+  const postId = validPostId(req.params.postId);
+  if (!req.user) throw new ApiError(401, "Unauthorized");
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+  if (!text || text.length > 1000) throw new ApiError(400, "Enter a comment of up to 1,000 characters.");
+  const comment = await createCommentService(text, postId, req.user);
+  res.status(201).json(new ApiResponse(201, comment, "Comment added"));
 });
 
-export const getCommentsByPost = asyncHandler(async (req: any, res: any) => {
-  const { postId } = req.params;
-
-  // by default page 1
-  const page = parseInt(req.query.page as string) || 1;
-
-  //service call
-  const result = await getCommentsByPostService(postId, page);
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, result, "Comments retrieved"));
+export const getCommentsByPost = asyncHandler(async (req, res) => {
+  const postId = validPostId(req.params.postId);
+  const page = Math.max(1, Math.min(100_000, Number.parseInt(String(req.query.page), 10) || 1));
+  const before = req.query.before;
+  if (before !== undefined && typeof before !== "string") throw new ApiError(400, "Invalid comment cursor");
+  const result = await getCommentsByPostService(postId, page, before);
+  res.json(new ApiResponse(200, result, "Comments retrieved"));
 });
 
 export const updateComment = asyncHandler(async (req: any, res: any) => {

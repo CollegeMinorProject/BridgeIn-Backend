@@ -7,6 +7,7 @@ import { createPostService } from "../../services/Post.Services";
 import like from "../../models/like.model";
 import { Post } from "../../models/post.model";
 import { User } from "../../models/user.model";
+import { Types } from "mongoose";
 
 //create post
 export const createPost = asyncHandler(async (req: Request, res: Response) => {
@@ -15,11 +16,8 @@ export const createPost = asyncHandler(async (req: Request, res: Response) => {
   if (!result.success) {
     throw new ApiError(403, "Invalid data");
   }
-  try {
-    await createPostService(result.data.text, req.user, file);
-  } catch (error) {
-    throw new ApiError(500, "Something went wrong");
-  }
+  if (!req.user) throw new ApiError(401, "Unauthorized");
+  await createPostService(result.data.text, req.user, file);
   res
     .status(200)
     .json(
@@ -46,8 +44,8 @@ export const likePost = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const existingLike = await like.findOne({
-    postid: postId,
-    LikedBy: userId,
+    post_id: postId,
+    liked_by: userId,
   });
 
   if (existingLike) {
@@ -55,8 +53,8 @@ export const likePost = asyncHandler(async (req: Request, res: Response) => {
   }
 
   await like.create({
-    postid: postId,
-    LikedBy: userId,
+    post_id: postId,
+    liked_by: userId,
   });
 
   return res
@@ -78,8 +76,8 @@ export const unlikePost = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(404, "Post not found");
   }
   const deletedLike = await like.findOneAndDelete({
-    postid: postId,
-    LikedBy: userId,
+    post_id: postId,
+    liked_by: userId,
   });
 
   if (!deletedLike) {
@@ -92,6 +90,34 @@ export const unlikePost = asyncHandler(async (req: Request, res: Response) => {
 });
 
 // Get like details
+export const likeAndDislike = asyncHandler(async (req, res) => {
+  const { postId } = req.params;
+  const userId = req.user;
+  const liked = req.body?.liked;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  if (typeof postId !== "string" || !Types.ObjectId.isValid(postId) || typeof liked !== "boolean") {
+    throw new ApiError(400, "Invalid post or like state");
+  }
+  if (!await Post.exists({ _id: postId })) throw new ApiError(404, "Post not found");
+
+  const pair = { post_id: postId, liked_by: userId };
+  if (liked) {
+    await like.init();
+    try {
+      await like.updateOne(pair, { $setOnInsert: pair }, { upsert: true });
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === 11000)) throw error;
+    }
+  } else {
+    await like.deleteOne(pair);
+  }
+  const [likesCount, ownLike] = await Promise.all([
+    like.countDocuments({ post_id: postId }),
+    like.exists(pair),
+  ]);
+  res.json(new ApiResponse(200, { likesCount, isLikedByMe: Boolean(ownLike) }));
+});
+
 export const getLikeDetails = asyncHandler(
   async (req: Request, res: Response) => {
     const postId = req.params.postId as string;
@@ -102,10 +128,10 @@ export const getLikeDetails = asyncHandler(
       throw new ApiError(404, "Post not found");
     }
 
-    const likes = await like.find({ postid: postId });
+    const likes = await like.find({ post_id: postId });
 
     const users = await User.find(
-      { _id: { $in: likes.map((item: any) => item.LikedBy) } },
+      { _id: { $in: likes.map((item) => item.liked_by) } },
       "name avatar",
     );
 

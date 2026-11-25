@@ -7,8 +7,9 @@ const commentSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    postid: {
-      type: String,
+    post_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
       required: true,
     },
     text: {
@@ -20,6 +21,8 @@ const commentSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+commentSchema.index({ post_id: 1, createdAt: -1, _id: -1 });
 
 export type CommentDocument = mongoose.Document &
   mongoose.InferSchemaType<typeof commentSchema>;

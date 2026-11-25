@@ -44,7 +44,7 @@ export const getMessagesService = async (
     _id: msg._id,
     senderId: msg.sender_id,
     text: msg.text,
-    image: msg.attachmentUrl,
+    image: msg.attachment_url,
     createdAt: msg.createdAt,
   }));
   return { messages: formattedMessages, totalMessages };

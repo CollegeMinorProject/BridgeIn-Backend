@@ -1,21 +1,25 @@
 import mongoose from "mongoose";
 const followerSchema = new mongoose.Schema(
   {
-    channel: {
+    main_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    follower: {
+    followed_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false },
   },
 );
+followerSchema.path("followed_by").validate(function (value) {
+  return !this.main_id || String(value) !== String(this.main_id);
+}, "A user cannot follow themselves");
+followerSchema.index({ main_id: 1, followed_by: 1 }, { unique: true });
 export type FollowerDocument = mongoose.Document &
   mongoose.InferSchemaType<typeof followerSchema>;
 export type IFollower = mongoose.InferSchemaType<typeof followerSchema>;

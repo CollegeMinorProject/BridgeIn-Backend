@@ -1,28 +1,20 @@
 import nodemailer from "nodemailer";
 import getEnv from "../getEnv";
-export async function sendEmail(to: string, subject: string, html: string) {
-  const host: String = getEnv.SMTP_HOST;
-  const port: Number = Number(getEnv.SMTP_PORT);
-  const pass: String = getEnv.SMTP_PASS;
-  const user: String = getEnv.SMTP_USER;
-  const from: String = getEnv.EMAIL_FROM;
-  if (!host || !pass || !user) {
-    console.log("Email env are not available");
-    return;
+
+export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const host = getEnv.SMTP_HOST;
+  const port = Number(getEnv.SMTP_PORT);
+  const user = getEnv.SMTP_USER;
+  const pass = getEnv.SMTP_PASS;
+  const from = getEnv.EMAIL_FROM;
+  if (!host || !user || !pass || !from || !Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error("Invalid SMTP configuration");
   }
   const transporter = nodemailer.createTransport({
     host,
     port,
-    secure: false,
-    auth: {
-      user,
-      pass,
-    },
+    secure: port === 465,
+    auth: { user, pass },
   });
-  transporter.sendMail({
-    from,
-    to,
-    subject,
-    html,
-  });
+  await transporter.sendMail({ from, to, subject, html });
 }

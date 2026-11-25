@@ -37,7 +37,7 @@ function formatMessage(message: {
   sender_id: Types.ObjectId;
   conversation_id: Types.ObjectId;
   text?: string | null;
-  attachmentUrl?: string | null;
+  attachment_url?: string | null;
   createdAt: Date;
 }) {
   return {
@@ -45,7 +45,7 @@ function formatMessage(message: {
     senderId: String(message.sender_id),
     conversationId: String(message.conversation_id),
     text: message.text ?? "",
-    image: message.attachmentUrl,
+    image: message.attachment_url,
     createdAt: message.createdAt,
   };
 }
@@ -71,7 +71,7 @@ async function summarize(threads: Thread[], userId: string) {
       id,
       participant: { id: participantId, name: participant?.name ?? "Deleted user", avatar: participant?.avatar },
       lastMessage: thread.last_message_text ?? "",
-      updatedAt: thread.last_message_at ?? thread.updatedAt,
+      updatedAt: thread.last_message_at ?? thread.createdAt,
       unreadCount: countsById.get(id) ?? 0,
     };
   });
@@ -88,8 +88,8 @@ export async function getConversations(userId: string) {
 }
 
 export async function getFollowedUsers(userId: string) {
-  const follows = await Follower.find({ follower: asId(userId) }).select("channel").lean();
-  const users = await User.find({ _id: { $in: follows.map(follow => follow.channel) } })
+  const follows = await Follower.find({ followed_by: asId(userId) }).select("main_id").lean();
+  const users = await User.find({ _id: { $in: follows.map(follow => follow.main_id) } })
     .select("name avatar").sort({ name: 1 }).lean();
   return users.map(user => ({ id: String(user._id), name: user.name, avatar: user.avatar }));
 }
@@ -143,7 +143,7 @@ export async function saveChatMessage(userId: string, input: {
   }
 
   const message = await Message.create({
-    conversation_id: thread._id, sender_id: asId(userId), text, attachmentUrl: input.image,
+    conversation_id: thread._id, sender_id: asId(userId), text, attachment_url: input.image,
   });
   const updated = await Conversation.findById(thread._id).lean().orFail();
   const receiverId = otherId(updated, userId);

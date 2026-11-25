@@ -1,5 +1,7 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
+export const APPLICATION_STATUSES = ["applied", "accepted", "interview_scheduled", "rejected", "cancelled", "interviewing", "hired"] as const;
+
 const jobApplicationSchema = new Schema(
   {
     job_post_id: {
@@ -26,14 +28,16 @@ const jobApplicationSchema = new Schema(
     status: {
       type: String,
       enum: {
-        values: ["applied", "interviewing", "rejected", "hired"],
+        values: APPLICATION_STATUSES,
         message: "{VALUE} is not a valid application status",
       },
       default: "applied",
     },
+    acceptedAt: { type: Date },
+    interviewAt: { type: Date },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: "appliedAt", updatedAt: true } as const,
   },
 );
 
@@ -44,11 +48,11 @@ jobApplicationSchema.index(
 );
 
 // recruiter view: applications for a job filtered by status
-jobApplicationSchema.index({ job_post_id: 1, status: 1, createdAt: -1 });
+jobApplicationSchema.index({ job_post_id: 1, status: 1, appliedAt: -1 });
 
 export type IJobApplication = InferSchemaType<typeof jobApplicationSchema>;
 
-export const JobApplication = model<IJobApplication>(
+export const JobApplication = model(
   "JobApplication",
   jobApplicationSchema,
 );

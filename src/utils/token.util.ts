@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import getEnv from "../getEnv";
 import { Response } from "express";
@@ -9,8 +10,13 @@ export function createAccessToken(payload: any) {
 export function createRefreshToken(payload: any) {
   return jwt.sign(payload, getEnv.JWT_REFRESH_SECRET, {
     expiresIn: "7d",
+    jwtid: randomUUID(),
   });
 }
+export function hashRefreshToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export function verifyRefreshToken(token: string) {
   return jwt.verify(token, getEnv.JWT_REFRESH_SECRET);
 }

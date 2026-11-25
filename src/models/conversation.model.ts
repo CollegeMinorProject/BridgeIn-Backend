@@ -5,13 +5,13 @@ const conversationSchema = new Schema(
   {
     participant1_id: {
       type: Schema.Types.ObjectId,
-      ref: "user",
+      ref: "User",
       required: true,
       index: true,
     },
     participant2_id: {
       type: Schema.Types.ObjectId,
-      ref: "user",
+      ref: "User",
       required: true,
       index: true,
     },
@@ -28,7 +28,7 @@ const conversationSchema = new Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false },
   },
 );
 conversationSchema.index(

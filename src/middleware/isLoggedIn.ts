@@ -30,3 +30,8 @@ export const isLoggedInMiddleWare = async (
   }
   next();
 };
+
+export function readViewerIfAuthenticated(req: Request, res: Response, next: NextFunction) {
+  if (req.headers.authorization === undefined) return next();
+  return isLoggedInMiddleWare(req, res, next);
+}

@@ -21,6 +21,7 @@ const resumeScreeningSchema = new mongoose.Schema(
     // compatibility score between the resume and the job description
     score: {
       type: Number,
+      validate: Number.isInteger,
       required: true,
       min: [0, "Score cannot be below 0"],
       max: [100, "Score cannot exceed 100"],
@@ -37,7 +38,7 @@ const resumeScreeningSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false },
   },
 );
 

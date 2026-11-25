@@ -1,13 +1,15 @@
 import { Router } from "express";
 import { isLoggedInMiddleWare } from "../middleware/isLoggedIn";
-import { createPost,likePost,unlikePost,getLikeDetails,} from "../controllers/Post/post.controller";
+import { createPost, likePost, unlikePost, likeAndDislike, getLikeDetails } from "../controllers/Post/post.controller";
 import { upload } from "../middleware/multer.middleware";
+import { searchJobs } from "../controllers/search.controller";
 
 
 // Your new controller imports
 import {
   createJob,
   getJobs,
+  getJob,
   updateJobStatus,
   deleteJob,
 } from "../controllers/Post/job.controller";
@@ -28,6 +30,7 @@ router.post("/create", upload.single("photo"), createPost);
 // Like and Unlike routes
 router.post("/:postId/like", likePost);
 router.delete("/:postId/like", unlikePost);
+router.post("/:postId/likeanddislike", likeAndDislike);
 
 // Get like details
 router.get("/:postId/likes", getLikeDetails);
@@ -40,6 +43,8 @@ router.delete("/comments/:commentId", deleteComment);
 // Your new Job routes
 router.post("/jobs", createJob);
 router.get("/jobs", getJobs);
+router.get("/jobs/search", searchJobs);
+router.get("/jobs/:jobId", getJob);
 router.patch("/jobs/:jobId", updateJobStatus);
 router.delete("/jobs/:jobId", deleteJob);
 

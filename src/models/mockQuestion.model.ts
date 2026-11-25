@@ -27,13 +27,14 @@ const mockQuestionSchema = new mongoose.Schema(
     },
     question_difficulty: {
       type: Number,
+      validate: Number.isInteger,
       required: true,
       min: [1, "Difficulty cannot be below 1"],
       max: [10, "Difficulty cannot exceed 10"],
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false },
   },
 );
 mockQuestionSchema.index({ mock_interview_id: 1, createdAt: 1 });

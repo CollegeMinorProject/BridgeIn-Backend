@@ -11,7 +11,7 @@ const messageSchema = new Schema(
     },
     sender_id: {
       type: Schema.Types.ObjectId,
-      ref: "user", // Matches your 'user' entity name
+      ref: "User",
       required: true,
       index: true,
     },
@@ -19,11 +19,11 @@ const messageSchema = new Schema(
       type: String,
       trim: true,
       // Explicitly define the 'this' context and the boolean return type
-      required: function (this: { attachmentUrl?: string | null }): boolean {
-        return !this.attachmentUrl;
+      required: function (this: { attachment_url?: string | null }): boolean {
+        return !this.attachment_url;
       },
     },
-    attachmentUrl: {
+    attachment_url: {
       type: String,
       trim: true,
       default: null,
@@ -35,7 +35,7 @@ const messageSchema = new Schema(
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false },
   }
 );
 

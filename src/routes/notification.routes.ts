@@ -43,6 +43,8 @@ router.get("/", asyncHandler(async (req, res) => {
   const items = page.map(item => ({
     id: String(item._id),
     type: item.type,
+    reference_type: item.reference_type,
+    reference_id: item.reference_id,
     senderName: names.get(String(item.sender_id)),
     isRead: item.isRead,
     createdAt: item.createdAt,

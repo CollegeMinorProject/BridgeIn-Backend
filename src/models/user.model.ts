@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
-export const USER_ROLES = ["candidate", "recruiter", "admin"] as const;
+export const USER_ROLES = ["candidate", "recruiter", "employer", "admin"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 const userSchema = new mongoose.Schema(
@@ -9,7 +9,11 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     avatar: { type: String, default: "" },
-    refreshToken: { type: String, default: "" },
+    refreshTokenHash: { type: String, default: "", select: false },
+    headline: { type: String, trim: true },
+    description: { type: String, trim: true },
+    avatar_public_id: { type: String, trim: true },
+    skills: { type: [{ type: String, trim: true }], default: [] },
     role: {
       type: String,
       enum: USER_ROLES,

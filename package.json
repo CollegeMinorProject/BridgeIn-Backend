@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "create-admin": "node --import tsx scripts/create-admin.ts",
+    "seed-demo": "node --import tsx scripts/seed-demo.ts",
+    "create-search-indexes": "node --import tsx scripts/create-search-indexes.ts"
   },
   "keywords": [],
   "author": "",

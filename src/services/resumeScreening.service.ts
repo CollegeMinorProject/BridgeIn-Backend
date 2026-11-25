@@ -2,8 +2,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import pdfParse from "pdf-parse";
 import { IJobPost } from "../models/jobPost.model";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export interface ScreeningResult {
   score: number;
   matchedSkills: string[];
@@ -18,26 +16,20 @@ const FALLBACK_MODELS = [
   "gemini-3.8-flash",
 ];
 
+export async function extractResumeText(resumeUrl: string): Promise<string> {
+  const response = await fetch(resumeUrl);
+  if (!response.ok) throw new Error("Failed to fetch resume PDF from Cloudinary.");
+  const parsed = await pdfParse(Buffer.from(await response.arrayBuffer()));
+  const text = parsed.text.trim();
+  if (!text) throw new Error("Could not extract text from the resume PDF.");
+  return text;
+}
+
 export const screenResumeAgainstJob = async (
-  resumeLink: string,
-  job: IJobPost
+  resumeText: string,
+  job: IJobPost,
 ): Promise<ScreeningResult> => {
-  // 1. Download PDF from Cloudinary URL
-  const pdfResponse = await fetch(resumeLink);
-  if (!pdfResponse.ok) {
-    throw new Error("Failed to fetch resume PDF from Cloudinary.");
-  }
-  const arrayBuffer = await pdfResponse.arrayBuffer();
-  const pdfBuffer = Buffer.from(arrayBuffer);
-
-  // 2. Extract text from PDF
-  const pdfData = await pdfParse(pdfBuffer);
-  const resumeText = pdfData.text.trim();
-
-  if (!resumeText) {
-    throw new Error("Could not extract text from the resume PDF.");
-  }
-
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   // 3. Build the prompt
   const prompt = `
 You are an expert technical recruiter and ATS (Applicant Tracking System).
@@ -46,7 +38,8 @@ Compare the following candidate resume against the job posting and evaluate comp
 --- JOB POSTING ---
 Title: ${job.title}
 Description: ${job.description}
-Requirements: ${Array.isArray(job.requirements) ? job.requirements.join(", ") : job.requirements}
+Requirements: ${job.requirements}
+Required skills: ${job.skills_required.join(", ")}
 
 --- CANDIDATE RESUME ---
 ${resumeText}

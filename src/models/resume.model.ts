@@ -8,16 +8,25 @@ const resumeSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    resumeLink: {
+    resume_link: {
       type: String,
       required: true,
       trim: true,
     },
+    resume_public_id: { type: String, trim: true },
+    name: { type: String, trim: true, maxlength: 100 },
+    slot: { type: Number },
+    extracted_text: { type: String },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: "uploadedAt", updatedAt: false } as const,
   },
 );
+
+resumeSchema.index({ belong_to: 1, slot: 1 }, {
+  unique: true,
+  partialFilterExpression: { slot: { $type: "number" } },
+});
 
 export type ResumeDocument = mongoose.Document &
   mongoose.InferSchemaType<typeof resumeSchema>;

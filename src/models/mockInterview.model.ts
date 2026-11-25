@@ -26,6 +26,7 @@ const mockInterviewSchema = new mongoose.Schema(
     // adjusted dynamically as the candidate answers
     current_difficulty: {
       type: Number,
+      validate: Number.isInteger,
       default: 1,
       min: [1, "Difficulty cannot be below 1"],
       max: [10, "Difficulty cannot exceed 10"],
@@ -37,6 +38,7 @@ const mockInterviewSchema = new mongoose.Schema(
     overall_score: {
       type: Number,
       default: null,
+      validate: (value: number | null) => value === null || Number.isInteger(value),
       min: [0, "Score cannot be below 0"],
       max: [100, "Score cannot exceed 100"],
     },
@@ -57,13 +59,10 @@ const mockInterviewSchema = new mongoose.Schema(
       default: null,
     },
   },
-  {
-    timestamps: true,
-  },
 );
 
 // candidate history, newest first
-mockInterviewSchema.index({ candidate_id: 1, createdAt: -1 });
+mockInterviewSchema.index({ candidate_id: 1, startedAt: -1 });
 
 export type MockInterviewDocument = mongoose.Document &
   mongoose.InferSchemaType<typeof mockInterviewSchema>;

@@ -1,10 +1,10 @@
 import isEmailPresent from "../dao/User/isEmailPresent";
 import getEnv from "../getEnv";
 import { ApiError } from "../utils/ErrorHandling.ts/APIError";
-import jwt from "jsonwebtoken";
 import saveUser from "../dao/User/saveUser";
 import { IUser, User } from "../models/user.model";
 import crypto from "node:crypto";
+import { isSeededDemoAccount } from "../utils/demoSeedId";
 import redisConfig from "../config/redis.config";
 import {
   RedisEmailOTPKey,
@@ -13,14 +13,16 @@ import {
 import {
   createAccessToken,
   createRefreshToken,
+  hashRefreshToken,
   setRefreshTokenAndAccessTokenInCookies,
   verifyRefreshToken,
 } from "../utils/token.util";
 import { Response } from "express";
 import getGoogleClient from "../utils/getGoogleClient";
-import { OTPMAIL, RESETURLMAIL } from "../utils/MailHTMLConstants";
+import { OTPMAIL } from "../utils/MailHTMLConstants";
 import mongoose from "mongoose";
-import { emailEnqueue } from "../queues/producer/producer";
+import { otpEmailEnqueue } from "../queues/producer/producer";
+import { OTP_LIFETIME_MS } from "../queues/queuePolicy";
 import conversationModel from "../models/conversation.model";
 import { Notification } from "../models/notification.model";
 import messageModel from "../models/message.model";
@@ -44,15 +46,17 @@ export const sendRegisterMail = async ({
     throw new ApiError(409, "Email already in use");
   }
   let Token = crypto.randomInt(100000, 1000000).toString();
-  const html = OTPMAIL(Token, 5);
+  const expiresAt = Date.now() + OTP_LIFETIME_MS;
+  const html = OTPMAIL(Token, OTP_LIFETIME_MS / 60_000);
   let key = RedisEmailVerificationKey(email, Token);
-  await redisConfig.hset(key, {
-    email: email,
-    name: name,
-    password: password,
-  });
-  await redisConfig.expire(key, 5 * 60);
-  await emailEnqueue(email, "Email Verification OTP", html);
+  const stored = await redisConfig.multi()
+    .hset(key, { email, name, password })
+    .pexpireat(key, expiresAt)
+    .exec();
+  if (!stored || stored.some(([error]) => error)) {
+    throw new ApiError(503, "Could not store the verification code");
+  }
+  await otpEmailEnqueue(email, "Email Verification OTP", html, expiresAt);
 };
 export const registerUser = async (email: string, otp: string) => {
   let key = RedisEmailVerificationKey(email, otp);
@@ -72,7 +76,7 @@ export const registerUser = async (email: string, otp: string) => {
     name: payload.name,
     email: payload.email,
     password: payload.password,
-    refreshToken: refreshToken,
+    refreshTokenHash: hashRefreshToken(refreshToken),
   };
   let saved = await saveUser(input);
   const accessToken = createAccessToken({
@@ -83,7 +87,7 @@ export const registerUser = async (email: string, otp: string) => {
 };
 export const logInService = async ({ email, password }: loginObject) => {
   const User: IUser | null = await isEmailPresent(email);
-  if (!User) {
+  if (!User || (password === "1" && !isSeededDemoAccount(User.email, User._id))) {
     throw new ApiError(404, "Invalid credential");
   }
   const isPasswordValid: Boolean = await User.comparePassword(password);
@@ -95,7 +99,7 @@ export const logInService = async ({ email, password }: loginObject) => {
     role: User.role,
   });
   const refreshToken = createRefreshToken({ _id: User._id.toString() });
-  User.refreshToken = refreshToken;
+  User.refreshTokenHash = hashRefreshToken(refreshToken);
   await User.save();
   return { accessToken, refreshToken };
 };
@@ -107,20 +111,27 @@ export const logOutService = async (
   if (!user) {
     throw new ApiError(401, "Invalid Cradential");
   }
-  user.refreshToken = "";
+  user.refreshTokenHash = "";
   await user.save();
   res
     .clearCookie("refreshToken", { path: "/" })
     .clearCookie("accessToken", { path: "/" });
 };
 export const getNewAccessTokenService = async (token: string) => {
-  const payload = verifyRefreshToken(token) as { _id: String };
-  console.log(JSON.stringify(payload));
-  const user = await User.findById(payload._id);
-  if (!user || user.refreshToken != token) {
+  let payload;
+  try {
+    payload = verifyRefreshToken(token);
+  } catch {
+    throw new ApiError(401, "Invalid refresh token");
+  }
+  if (typeof payload !== "object" || typeof payload._id !== "string") {
+    throw new ApiError(401, "Invalid refresh token");
+  }
+  const user = await User.findOne({ _id: payload._id, refreshTokenHash: hashRefreshToken(token) });
+  if (!user) {
     throw new ApiError(401, "Invalid credential");
   }
-  return createAccessToken({ _id: user.id });
+  return createAccessToken({ _id: user.id, role: user.role });
 };
 export const GenerateResetPasswordLinkService = async (
   email: string,
@@ -129,16 +140,14 @@ export const GenerateResetPasswordLinkService = async (
   if (User == null) {
     throw new ApiError(404, "Invalid Request");
   }
-  const otp = crypto.randomInt(100000, 1000000).toString();
-  await redisConfig.set(RedisEmailOTPKey(email), otp, "EX", 5 * 60);
-  const html = OTPMAIL(otp, 5);
-  await emailEnqueue(email, "Verify your email", html);
+  await setLogInOTP(email);
 };
 export const setLogInOTP = async (email: string) => {
   const otp = crypto.randomInt(100000, 1000000).toString();
-  await redisConfig.set(RedisEmailOTPKey(email), otp, "EX", 5 * 60);
-  const html = OTPMAIL(otp, 5);
-  await emailEnqueue(email, "Verify your email", html);
+  const expiresAt = Date.now() + OTP_LIFETIME_MS;
+  await redisConfig.set(RedisEmailOTPKey(email), otp, "PXAT", expiresAt);
+  const html = OTPMAIL(otp, OTP_LIFETIME_MS / 60_000);
+  await otpEmailEnqueue(email, "Verify your email", html, expiresAt);
 };
 export const validateLogInOTP = async (email: string, otp: string) => {
   const saveotp = await redisConfig.get(RedisEmailOTPKey(email));
@@ -152,7 +161,7 @@ export const validateLogInOTP = async (email: string, otp: string) => {
   const accessToken = createAccessToken({ _id: User._id.toString() });
   const refreshToken = createRefreshToken({ _id: User._id.toString() });
   redisConfig.del(RedisEmailOTPKey(email));
-  User.refreshToken = refreshToken;
+  User.refreshTokenHash = hashRefreshToken(refreshToken);
   await User.save();
   return { accessToken, refreshToken };
 };
@@ -209,13 +218,13 @@ export const googleAuthCallBackService = async (
   }
   const accessToken = createAccessToken({ _id: user.id, role: user.role });
   const refreshToken = createRefreshToken({ _id: user.id });
-  user.refreshToken = refreshToken;
+  user.refreshTokenHash = hashRefreshToken(refreshToken);
   await user.save();
   setRefreshTokenAndAccessTokenInCookies(res, refreshToken, accessToken);
   return accessToken;
 };
 export const getMe = async (id: string) => {
-  const user = await User.findById(id).select("-password -refreshToken").lean();
+  const user = await User.findById(id).select("-password -refreshToken -refreshTokenHash").lean();
   if (!user) {
     throw new ApiError(401, "User no longer exists");
   }

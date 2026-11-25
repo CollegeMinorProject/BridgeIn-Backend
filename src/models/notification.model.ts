@@ -6,9 +6,13 @@ export const NOTIFICATION_TYPES = [
   "follow",
   "job_status",
   "interview_invite",
+  "direct_message",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const NOTIFICATION_REFERENCES = ["Post", "JobApplication", "InterviewSession", "Conversation"] as const;
+export type NotificationReference = (typeof NOTIFICATION_REFERENCES)[number];
 
 const notificationSchema = new mongoose.Schema(
   {
@@ -28,13 +32,15 @@ const notificationSchema = new mongoose.Schema(
       enum: NOTIFICATION_TYPES,
       required: true,
     },
+    reference_type: { type: String, enum: NOTIFICATION_REFERENCES },
+    reference_id: { type: mongoose.Schema.Types.ObjectId, refPath: "reference_type" },
     isRead: {
       type: Boolean,
       default: false,
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false },
   },
 );
 
